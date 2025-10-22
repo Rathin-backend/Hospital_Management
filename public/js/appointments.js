@@ -161,6 +161,14 @@ $(document).ready(function () {
     $("#actionModal").css("display","flex");
   });
 
+  // ✅ Redirect to completeAppointment.html with appointmentId
+      $(document).on("click", ".btn-complete", function() {
+        const appointmentId = $(this).data("id");
+        window.location.href = `completeAppointment.html?appointmentId=${appointmentId}`;
+      });
+
+
+
   // ---------- CANCEL ----------
   $(document).on("click", ".btn-cancel", function () {
     const id = $(this).data("id");

@@ -7,6 +7,7 @@ use CodeIgniter\RESTful\ResourceController;
 use App\Models\UserModel;
 use App\Models\AppointmentModel;
 use App\Models\VisitRecordsModel;
+use App\Models\HospitalsModel;
 use PHPUnit\TextUI\XmlConfiguration\Validator;
 helper('time_helper');
 helper('time_helper2');
@@ -16,7 +17,7 @@ helper('validateFutureAppointment_helper');
 class AppointmentController extends ResourceController
 {
    
-   private $appointmentModel, $userModel , $db , $visitRecords;
+   private $appointmentModel, $userModel , $db , $visitRecords , $hospitalModel;
 
   //  private function convertToDatabaseTime($time12Hour)
   // {   
@@ -31,6 +32,7 @@ public function __construct()
     $this->appointmentModel = new AppointmentModel();
     $this->userModel = new UserModel();
     $this->visitRecords = new VisitRecordsModel();
+    $this->hospitalModel = new HospitalsModel();
 }
 
 public function ListAppointmentforDoctorsandAdmins()
@@ -1466,6 +1468,97 @@ public function cancelAppointment()
         ]);
     }
 }
+
+
+public function DoctorAvailability()
+{
+  try{
+    $validationRules = [
+        "hospital_id" => [
+            "rules" => "required"
+        ],
+        "DoctorId" => [
+            "rules" => "required"
+        ],
+        "Date" => [
+            "rules" => "required"
+        ]
+    ];
+
+    if(!$this->validate($validationRules))
+    {
+        return $this->respond([
+            "status" => "false",
+            "Mssge" => $this->validator->getErrors()
+        ]);
+    }
+
+    $allSlots = [
+        "10:00:00",
+        "11:00:00",
+        "12:00:00",
+        "14:00:00",
+        "15:00:00",
+        "16:00:00",
+        "17:00:00"
+    ];
+
+
+    $hospital_id = $this->request->getVar("hospital_id");
+    $DoctorId = $this->request->getVar("DoctorId");
+    $Date = $this->request->getVar("Date");
+
+    $HospitalDetails = $this->hospitalModel->where("id" , $hospital_id)
+                                           ->find();
+
+    $HospitalName = $HospitalDetails['name'] ?? "this hospital";
+
+    //Ensure whether the doctor is present in that hospital
+    $DoctorDetails = $this->userModel->where("id" , $DoctorId)
+                                     ->where("hospital_id" , $hospital_id)
+                                     ->find();
+
+    if(!$DoctorDetails)
+    {
+        return $this->respond([
+            "status" => false,
+            "Mssge" => "Doctor does not exist OR doesnot belong to {$HospitalName}"
+        ]);
+    }
+
+    //Assuming that Hospital timings is 10am - 6pm (NOTE : 1 to 2 is lunch break)
+    $FilledSlots = $this->appointmentModel->where("doctor_id" , $DoctorId)
+                                          ->where("Appointment_date" , $Date)
+                                          ->where("hospital_id" , $hospital_id)
+                                          ->where("status" , 'booked')
+                                          ->findAll();
+
+    //Collect booked start times                                          
+    $bookedTimes = array_map(fn($a) => date("H:i:s" , strtotime($a["Appointment_startTime"])),$FilledSlots);
+
+
+    //Get available slots (only those not booked)
+    $availableSlots = array_values(array_filter($allSlots , function($slot) use ($bookedTimes) {
+        return !in_array($slot , $bookedTimes);
+    }));
+
+
+    return $this->respond([
+        "status" => false,
+        "Mssge" => "Suucessfully Fetched the Free slots",
+        "data" => $availableSlots
+    ]);
+
+
+  }catch(\Exception $e)
+  {
+     return $this->respond([
+        "status" => false,
+        "Error" => $e->getMessage()
+     ]);
+  }
+}
+
 
 }
 

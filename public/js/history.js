@@ -40,7 +40,7 @@ $(document).ready(function () {
                             <td>${item.appointment_id}</td>
                             <td>${item.doctorName}</td>
                             <td>${patientName}</td>
-                            <td>${hospitalName}</td>
+                            <td>${hospitalName}</td> <!-- ✅ Added hospital column -->
                             <td>${item.appointment_date}</td>
                             <td>${item.appointment_startTime}</td>
                             <td>${item.appointment_endTime}</td>
@@ -58,7 +58,7 @@ $(document).ready(function () {
                                     <p><span class="fw-bold">Blood Pressure:</span> ${item.visit_records?.bp_systolic || "-"}/${item.visit_records?.bp_diastolic || "-"} mmHg</p>
                                     <p><span class="fw-bold">Doctor Comment:</span> ${item.visit_records?.doctor_comment || "-"}</p>
                                     <button class="btn btn-sm btn-primary downloadPdfBtn mt-2" 
-                                        data-appointment='${JSON.stringify(item).replace(/'/g, "&apos;").replace(/"/g, "&quot;")}'
+                                        data-appointment='${JSON.stringify(item).replace(/'/g, "&apos;").replace(/"/g, "&quot;")}'>
                                         <i class="fa-solid fa-file-pdf"></i> Download PDF
                                     </button>
                                 </div>
@@ -96,7 +96,7 @@ $(document).ready(function () {
                         doc.text(`Appointment ID: ${item.appointment_id}`, 20, y); y += 10;
                         doc.text(`Doctor: ${item.doctorName}`, 20, y); y += 10;
                         doc.text(`Patient: ${item.patientName}`, 20, y); y += 10;
-                        doc.text(`Hospital: ${item.HospitalName}`, 20, y); y += 10;
+                        doc.text(`Hospital: ${item.HospitalName}`, 20, y); y += 10; // ✅ Added in PDF
                         doc.text(`Contact: ${item.Hospital_contactNo || "-"}`, 20, y); y += 10;
                         doc.text(`Address: ${item.Hospital_address || "-"}`, 20, y); y += 10;
                         doc.text(`Date: ${item.appointment_date}`, 20, y); y += 10;

@@ -20,7 +20,12 @@ $routes->post('api/update-profile', 'AdminController::updateProfile');
 
 $routes->group("hospital" ,["namespace" => "namespace App\Controllers" , "filter" => "Auth"] ,  function($routes)
 {
-   $routes->get('list-all-Hospitals' , [HospitalController::class , 'listAllHospitals']);
+    $routes->group('' , ['filter' => 'roleSuperAdmin'], function($routes)
+    {
+   
+    });
+
+    $routes->get('list-all-Hospitals' , [HospitalController::class , 'listAllHospitals']);
    $routes->get('get-Hospital-Info' , [HospitalController::class , 'gethospitalInfo']);
 });
 
@@ -31,13 +36,11 @@ $routes->group("hospital" ,["namespace" => "namespace App\Controllers" , "filter
 $routes->group("api" , ["namespace" => "App\Controllers", "filter" => "Auth" ] , function($routes)
 {
 
-
     // Routes for Admin
     $routes->group('', ['filter' => 'roleAdmin'], function ($routes) 
     {
 
     });
-
 
     
     //Routes for Doctor
@@ -53,6 +56,7 @@ $routes->group("api" , ["namespace" => "App\Controllers", "filter" => "Auth" ] ,
         $routes->delete('Delete-Patient', [AdminController::class, 'deletePatient']);
     });
 
+
     //Routes for SuperAdmin
     $routes->group('' , ['filter' => 'roleSuperAdmin'], function($routes)
     {
@@ -63,6 +67,7 @@ $routes->group("api" , ["namespace" => "App\Controllers", "filter" => "Auth" ] ,
         $routes->get('list-Doctors-for-SuperAdmin', [AdminController::class, 'ListDoctorsforSuperAdmins']);
         $routes->get('list-Patients-for-SuperAdmin', [AdminController::class, 'ListPatientsforSuperAdmin']);
     });
+
 
 
     //Routes for SuperAdmin + Admin
@@ -86,6 +91,7 @@ $routes->group("api" , ["namespace" => "App\Controllers", "filter" => "Auth" ] ,
 
 
 
+
 //Appointment
 $routes->group("appointment" , ["namespace" => "App\Controllers" , "filter" => "Auth"] , function($routes)
 {
@@ -102,6 +108,7 @@ $routes->group("appointment" , ["namespace" => "App\Controllers" , "filter" => "
     {
       $routes->post('complete-Appointment' , [AppointmentController::class , 'completeAppointment']);     
       $routes->get('List-appointments-for-Doctors-and-Admins', [AppointmentController::class, 'ListAppointmentforDoctorsandAdmins']);
+      $routes->post('Reschedule-appointment', [AppointmentController::class, 'rescheduleAppointment']);
     });
 
 
@@ -130,14 +137,14 @@ $routes->group("appointment" , ["namespace" => "App\Controllers" , "filter" => "
 
 
 
-
     //Routes for all authenticated users
+    $routes->get('get-Doctor-Availability' , [AppointmentController::class , 'DoctorAvailability']);
     $routes->get('show-History' , [AppointmentController::class , 'showHistory']);
     $routes->get('getDetailsforPatient' , [AdminController::class , 'getDetailsforPatient']);
     $routes->get('getPatientStats' , [AppointmentController::class , 'getPatientStats']);
     
     $routes->post('appointment/check-availability', [AppointmentController::class, 'checkAvailability']);
-    $routes->post('Reschedule-appointment', [AppointmentController::class, 'rescheduleAppointment']);
+    
     $routes->get('export-csv', [AppointmentController::class, 'ExportAppointmentsCSV']);
 });
 
