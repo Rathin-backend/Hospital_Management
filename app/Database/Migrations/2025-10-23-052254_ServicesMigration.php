@@ -4,56 +4,54 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
-class HospitalsMigration extends Migration
+class ServicesMigration extends Migration
 {
     public function up()
     {
         $this->forge->addField([
             "id" => [
                 "type" => "INT",
-                "auto_increment" => true,
                 "unsigned" => true,
-                "constraint" => 5
+                "constraint" => 5,
+                "auto_increment" => true,
             ],
-            "name" => [
+            "service_name" => [
                 "type" => "VARCHAR",
                 "constraint" => 30,
-                "null" => false
+                "null" => false,
             ],
-            "address" => [
+            "service_type" => [
+                "type" => "ENUM",
+                "constraint" => ['consultation' , 'lab_test', 'other']
+            ],
+            "description" => [
                 "type" => "TEXT",
-                "null" => false, 
-            ],
-            "contact_no" => [
-                "type" => "VARCHAR",
-                "constraint" => 15,
-                "null" => true,
-                "default" => null
-            ],
-            "isDeleted" => [
-               "type" => "TINYINT",
-                "unsigned" => true,
-                "null" => true,
-                "default" => 0
+                "null" => true 
             ],
             "created_at datetime default current_timestamp",
             "updated_at" => [
                 "type" => "DATETIME",
                 "after" => "created_at"
             ],
+            "isDeleted" => [
+                "type" => "TINYINT",
+                "default" => 0
+            ]
         ]);
-        $this->forge->addPrimaryKey("id");
-        $this->forge->createTable("hospitals");
 
-        
+        $this->forge->addPrimaryKey("id");
+        $this->forge->createTable("services");
+
         $this->db->query("
-            ALTER TABLE `hospitals`
+            ALTER TABLE `services`
             MODIFY `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ");
+
+
     }
 
     public function down()
     {
-        $this->forge->dropTable("hospitals");
+        $this->forge->dropTable("services",true);
     }
 }

@@ -3,6 +3,7 @@
 use CodeIgniter\Router\RouteCollection;
 use App\Controllers\AdminController;
 use App\Controllers\AppointmentController;
+use App\Controllers\BillingController;
 use App\Controllers\HospitalController;
 
 /**
@@ -146,6 +147,23 @@ $routes->group("appointment" , ["namespace" => "App\Controllers" , "filter" => "
     $routes->post('appointment/check-availability', [AppointmentController::class, 'checkAvailability']);
     
     $routes->get('export-csv', [AppointmentController::class, 'ExportAppointmentsCSV']);
+});
+
+
+
+//Billing and Services related
+$routes->group('billing' , ["namespace" => "App\Controllers" , "filter" => "Auth"], function($routes)
+{
+
+    //Routes for admin and doctor
+    $routes->group('' , ['filter' => 'role_Doctor_and_Admin'] , function($routes)
+    {
+         $routes->get('List-Services-with-Prices-HospitalWise' , [BillingController::class , 'listServiceswithPriceHospitalWise']);
+         $routes->get('get-consultation-fee' , [BillingController::class , 'getConsultationFee']);
+         $routes->post('Generate-Bill' , [BillingController::class , 'generateBill']);
+         $routes->post('make-Payment' , [BillingController::class , 'makePayment']);
+
+    });
 });
 
 
