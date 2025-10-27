@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payments Listing</title>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f9fc; --card:#ffffff; --accent:#0a66c2; --muted:#6b7280; 
+  --success:#16a34a; --danger:#dc3545; --warning:#f59e0b; --shadow:0 6px 20px rgba(16,24,40,0.06); 
+  --radius:12px;
+}
+*{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+body{margin:0;background:var(--bg);padding:28px;color:#111827;}
+.container{max-width:1200px;margin:0 auto;}
+h1{font-size:22px;font-weight:700;margin-bottom:16px;}
+.back-btn{background:transparent;border:1px solid #e6eef8;padding:8px 12px;border-radius:8px;color:var(--accent);cursor:pointer;margin-bottom:16px;}
+table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;box-shadow:var(--shadow);}
+th, td{padding:12px;text-align:left;border-bottom:1px solid #e6eef8;}
+th{background:#f1f5f9;font-weight:600;color:#0b1220;}
+td .btn{padding:6px 12px;border-radius:6px;border:0;cursor:pointer;font-weight:600;font-size:13px;}
+.btn-complete{background:var(--success);color:white;}
+.btn-cancel{background:var(--danger);color:white;}
+.badge-completed{background:var(--success);color:white;padding:6px 10px;border-radius:6px;font-weight:600;}
+.badge-cancelled{background:var(--danger);color:white;padding:6px 10px;border-radius:6px;font-weight:600;}
+.expand-row{display:none;background:#f9fafb;}
+.expand-row td{border-top:none;}
+.extra-services{margin-top:8px;}
+.extra-services table{width:100%;border-collapse:collapse;}
+.extra-services th, .extra-services td{padding:6px;border-bottom:1px solid #e5e7eb;text-align:left;}
+.extra-services th{background:#f3f4f6;}
+.filter-container{margin-bottom:16px;}
+.filter-container select{padding:8px;border-radius:6px;border:1px solid #ccc;}
+@media (max-width:768px){table, th, td{font-size:13px;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <button class="back-btn" onclick="window.location.href='appointments.html'">← Back to Appointments</button>
+  <h1>Payments Listing</h1>
+
+  <div class="filter-container">
+    <label>Filter by Status: 
+      <select id="statusFilter">
+        <option value="all">All</option>
+        <option value="pending">Pending</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </label>
+  </div>
+
+  <table id="paymentsTable">
+    <thead>
+      <tr>
+        <th>Billing ID</th>
+        <th>Appointment ID</th>
+        <th>Patient Name</th>
+        <th>Patient Email</th>
+        <th>Total Amount</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script src="js/listPayment.js"></script>
+</body>
+</html>

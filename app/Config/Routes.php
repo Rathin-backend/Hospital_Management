@@ -162,8 +162,9 @@ $routes->group('billing' , ["namespace" => "App\Controllers" , "filter" => "Auth
          $routes->get('get-consultation-fee' , [BillingController::class , 'getConsultationFee']);
          $routes->post('Generate-Bill' , [BillingController::class , 'generateBill']);
          $routes->post('make-Payment' , [BillingController::class , 'makePayment']);
-
     });
+
+    $routes->post('list-Payments' , [BillingController::class , 'listPayments'] , );
 });
 
 

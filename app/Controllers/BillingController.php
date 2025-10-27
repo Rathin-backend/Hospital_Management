@@ -326,6 +326,119 @@ public function makePayment()
 }
 
 
+public function listPayments()
+{
+        $role = $this->request->role; // From JWTAuthFilter
+        $userId = $this->request->id;
+        $hospitalId = $this->request->hospital_id ?? null;
+
+        // ================================
+        // 🔹 Base query
+        // ================================
+        $builder = $this->db->table('billings as b')
+            ->select('
+                b.id as billing_id,
+                b.unique_key,
+                b.total_amount,
+                b.status,
+                b.transaction_type,
+                b.created_at,
+                b.hospital_id,
+                a.id as appointment_id,
+                a.Appointment_date,
+                a.Appointment_startTime,
+                a.Appointment_endTime,
+                a.doctor_id,
+                a.patient_id,
+                u.name as patient_name,
+                u.email as patient_email
+            ')
+            ->join('appointments as a', 'a.id = b.appointment_id', 'left')
+            ->join('users as u', 'u.id = a.patient_id', 'left')
+            ->where('b.isDeleted', 0);
+
+        // ================================
+        // 🔹 Role-based filtering
+        // ================================
+        if ($role === '2') {
+            // 2 = Patient → fetch only his payments
+            $builder->where('a.patient_id', $userId);
+        } elseif ($role === '0') {
+            // 0 = Admin → fetch only hospital payments
+            if (!$hospitalId) {
+                return $this->fail('Hospital ID missing in token for admin', 400);
+            }
+            $builder->where('b.hospital_id', $hospitalId);
+        }
+
+        // ================================
+        // 🔹 Fetch billing data
+        // ================================
+        $billings = $builder->orderBy('b.created_at', 'DESC')->get()->getResultArray();
+
+        if (empty($billings)) {
+            return $this->respond([
+                'status' => true,
+                'message' => 'No billing records found',
+                'data' => []
+            ]);
+        }
+
+        // ================================
+        // 🔹 Fetch related billing items (extra services)
+        // ================================
+        $billingIds = array_column($billings, 'billing_id');
+        $billingItems = $this->db->table('billing_items as bi')
+            ->select('bi.billing_id, s.service_name, bi.amount')
+            ->join('services as s', 's.id = bi.service_id', 'left')
+            ->whereIn('bi.billing_id', $billingIds)
+            ->where('bi.isDeleted', 0)
+            ->get()
+            ->getResultArray();
+
+        // Group billing items by billing_id
+        $itemsByBilling = [];
+        foreach ($billingItems as $item) {
+            $itemsByBilling[$item['billing_id']][] = [
+                'service_name' => $item['service_name'],
+                'amount' => $item['amount']
+            ];
+        }
+
+        // ================================
+        // 🔹 Prepare Final Response
+        // ================================
+        $data = [];
+        foreach ($billings as $bill) {
+            $data[] = [
+                'billing_id'       => $bill['billing_id'],
+                'appointment_id'   => $bill['appointment_id'],
+                'hospital_id'      => $bill['hospital_id'],
+                'unique_key'       => $bill['unique_key'],
+                'total_amount'     => $bill['total_amount'],
+                'status'           => $bill['status'],
+                'transaction_type' => $bill['transaction_type'],
+                'appointment_date' => $bill['Appointment_date'],
+                'start_time'       => $bill['Appointment_startTime'],
+                'end_time'         => $bill['Appointment_endTime'],
+                'patient_name'     => $bill['patient_name'],
+                'patient_email'    => $bill['patient_email'],
+                'extra_services'   => $itemsByBilling[$bill['billing_id']] ?? [],
+                'created_at'       => $bill['created_at']
+            ];
+        }
+
+        return $this->respond([
+            'status' => true,
+            'message' => 'Billing records fetched successfully',
+            'data' => $data
+        ]);
+}
+
+
+
+
+
 private function generateUniqueTxnId()
 {
     do {
@@ -335,6 +448,8 @@ private function generateUniqueTxnId()
 
     return $unique;
 }
+
+
 
 
 

@@ -39,7 +39,7 @@ $(document).ready(function () {
             success: function (res) {
                 if (res.status) {
                     alert(res.Mssge || "Appointment completed successfully");
-                    window.location.href = "appointments.html";
+                    window.location.href = `generateBill.html?appointmentId=${appointmentId}`
                 } else {
                     alert(res.Mssge || res.Error || "Failed to complete appointment");
                 }

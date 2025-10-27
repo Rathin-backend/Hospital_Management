@@ -29,10 +29,10 @@ $(document).ready(function () {
         $("#patientDashboardSection").hide();
 
         // Hide all menus first
-        $("#addDoctorMenu, #addPatientMenu, #bookAppointmentMenu, #patientsMenu, #appointmentsMenu, #doctorsMenu , #showHistory, #HospitalMenu , #addHospitalMenu, #addAdminMenu , #AdminsMenu").addClass("hidden");
+        $("#addDoctorMenu, #addPatientMenu, #bookAppointmentMenu, #patientsMenu, #appointmentsMenu, #doctorsMenu , #showHistory, #HospitalMenu , #addHospitalMenu, #addAdminMenu , #AdminsMenu , #listPaymentMenu").addClass("hidden");
 
         if (role === "0") { // Admin
-            $("#addDoctorMenu, #addPatientMenu, #doctorsMenu, #patientsMenu, #appointmentsMenu, #bookAppointmentMenu").removeClass("hidden");
+            $("#addDoctorMenu, #addPatientMenu, #doctorsMenu, #patientsMenu, #appointmentsMenu, #bookAppointmentMenu,#listPaymentMenu").removeClass("hidden");
             loadAdminStats();
             loadHospitalInfo();
         } else if (role === "1") { // Doctor
@@ -40,7 +40,7 @@ $(document).ready(function () {
             loadAdminStats();
             loadHospitalInfo();
         } else if (role === "2") { // Patient
-            $("#bookAppointmentMenu, #appointmentsMenu, #showHistory").removeClass("hidden");
+            $("#bookAppointmentMenu, #appointmentsMenu, #showHistory,#listPaymentMenu").removeClass("hidden");
             $("#dashboardSection").hide();
             $("#patientDashboardSection").show();
             loadPatientDetails();
