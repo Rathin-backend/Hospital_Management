@@ -3,6 +3,8 @@ $(document).ready(function () {
   const role = localStorage.getItem("role") || "2";
   if (!token) { window.location.href = "index.html"; return; }
 
+  
+
   $("#backBtn").on("click", () => window.location.href = "dashboard.html");
 
   const storedHospitalId = localStorage.getItem("selectedHospitalId");

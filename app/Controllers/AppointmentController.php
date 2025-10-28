@@ -38,6 +38,7 @@ public function __construct()
 public function ListAppointmentforDoctorsandAdmins()
 {
     try {
+         
         $userRole = $this->request->role;
         $userId = $this->request->id;
         
@@ -46,6 +47,7 @@ public function ListAppointmentforDoctorsandAdmins()
 
 
         $hospital_id = $this->request->hospital_id; 
+       
 
         if(!$hospital_id && $userRole != 2)
         {
@@ -65,7 +67,7 @@ public function ListAppointmentforDoctorsandAdmins()
         $date        = $this->request->getVar("date"); // YYYY-MM-DD
         $dateFilter  = $this->request->getVar("dateFilter"); // today, this_week, last_month
 
-
+        
         // base builder with joins
         $builder = $this->appointmentModel
             ->select("appointments.*,
@@ -626,10 +628,10 @@ public function BookAppointment()
         "rules" => "required"
         ],
         "appointment_date" => [
-        "rules" => "required|valid_date[Y-m-d]",  // YYYY-MM-DD
+        "rules" => "required",  // YYYY-MM-DD
         ],
         "appointment_startTime" => [
-        "rules" => "required|valid_date[h:i A]",  // HH:MM AM/PM format
+        "rules" => "required",  // HH:MM AM/PM format
         ],
     ];
     
@@ -1462,9 +1464,61 @@ public function cancelAppointment()
 
     }catch(\Exception $e)
     {
-       return $this->respond([  
+       return $this->respond([
             "status" => false,
             "Error" => $e->getMessage(), 
+        ]);
+    }
+}
+
+public function cancelPendingAppointments()
+{
+    try {
+        // This is a manual trigger for the CRON job
+        $thresholdTime = date('Y-m-d H:i:s', strtotime('-24 hours'));
+        
+        // Find pending appointments older than 24 hours
+        $pendingAppointments = $this->appointmentModel
+               ->where('status', 'pending')
+               ->where('created_at <', $thresholdTime)
+               ->findAll();
+
+        if(empty($pendingAppointments))
+        {
+            return $this->respond([
+                "status" => true,
+                "Mssge" => "No pending appointments found older than 24 hours",
+                "count" => 0
+            ]);
+        }
+
+        $ids = array_column($pendingAppointments, 'id');
+
+        $result = $this->appointmentModel
+            ->whereIn('id', $ids)
+            ->set(['status' => 'cancelled'])
+            ->update();
+
+        if($result)
+        {
+            return $this->respond([
+                "status" => true,
+                "Mssge" => "Successfully cancelled " . count($ids) . " pending appointment(s)",
+                "count" => count($ids),
+                "cancelled_ids" => $ids
+            ]);
+        }
+        
+        return $this->respond([
+            "status" => false,
+            "Mssge" => "Failed to cancel appointments"
+        ]);
+        
+    } catch(\Exception $e)
+    {
+        return $this->respond([
+            "status" => false,
+            "Error" => $e->getMessage()
         ]);
     }
 }
@@ -1530,8 +1584,12 @@ public function DoctorAvailability()
     $FilledSlots = $this->appointmentModel->where("doctor_id" , $DoctorId)
                                           ->where("Appointment_date" , $Date)
                                           ->where("hospital_id" , $hospital_id)
-                                          ->where("status" , 'booked')
+                                          ->groupStart()
+                                             ->where("status", 'booked')
+                                             ->orWhere("status", 'pending')
+                                          ->groupEnd()
                                           ->findAll();
+
 
     //Collect booked start times                                          
     $bookedTimes = array_map(fn($a) => date("H:i:s" , strtotime($a["Appointment_startTime"])),$FilledSlots);

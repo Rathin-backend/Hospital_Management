@@ -144,7 +144,7 @@ $routes->group("appointment" , ["namespace" => "App\Controllers" , "filter" => "
     $routes->get('getDetailsforPatient' , [AdminController::class , 'getDetailsforPatient']);
     $routes->get('getPatientStats' , [AppointmentController::class , 'getPatientStats']);
     
-    $routes->post('appointment/check-availability', [AppointmentController::class, 'checkAvailability']);
+    $routes->post('check-availability', [AppointmentController::class, 'checkAvailability']);
     
     $routes->get('export-csv', [AppointmentController::class, 'ExportAppointmentsCSV']);
 });

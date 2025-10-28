@@ -2,6 +2,8 @@ $(document).ready(function () {
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role"); // 3 = SuperAdmin
 
+  if (!token) { window.location.href = "index.html"; return; }
+
   // Restrict non-superadmins
   if (!token || role !== "3") {
     alert("Access Denied!");

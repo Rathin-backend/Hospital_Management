@@ -332,9 +332,7 @@ public function listPayments()
         $userId = $this->request->id;
         $hospitalId = $this->request->hospital_id ?? null;
 
-        // ================================
-        // 🔹 Base query
-        // ================================
+      
         $builder = $this->db->table('billings as b')
             ->select('
                 b.id as billing_id,
@@ -344,6 +342,9 @@ public function listPayments()
                 b.transaction_type,
                 b.created_at,
                 b.hospital_id,
+                h.name as HospitalName,
+                h.address as HospitalAddress,
+                h.contact_no as Hospital_Contact_no,
                 a.id as appointment_id,
                 a.Appointment_date,
                 a.Appointment_startTime,
@@ -355,11 +356,10 @@ public function listPayments()
             ')
             ->join('appointments as a', 'a.id = b.appointment_id', 'left')
             ->join('users as u', 'u.id = a.patient_id', 'left')
+            ->join('hospitals as h' , 'h.id = b.hospital_id')
             ->where('b.isDeleted', 0);
 
-        // ================================
-        // 🔹 Role-based filtering
-        // ================================
+        
         if ($role === '2') {
             // 2 = Patient → fetch only his payments
             $builder->where('a.patient_id', $userId);
@@ -371,9 +371,7 @@ public function listPayments()
             $builder->where('b.hospital_id', $hospitalId);
         }
 
-        // ================================
-        // 🔹 Fetch billing data
-        // ================================
+        
         $billings = $builder->orderBy('b.created_at', 'DESC')->get()->getResultArray();
 
         if (empty($billings)) {
@@ -384,9 +382,7 @@ public function listPayments()
             ]);
         }
 
-        // ================================
-        // 🔹 Fetch related billing items (extra services)
-        // ================================
+       
         $billingIds = array_column($billings, 'billing_id');
         $billingItems = $this->db->table('billing_items as bi')
             ->select('bi.billing_id, s.service_name, bi.amount')
@@ -405,15 +401,16 @@ public function listPayments()
             ];
         }
 
-        // ================================
-        // 🔹 Prepare Final Response
-        // ================================
+       
         $data = [];
         foreach ($billings as $bill) {
             $data[] = [
                 'billing_id'       => $bill['billing_id'],
                 'appointment_id'   => $bill['appointment_id'],
                 'hospital_id'      => $bill['hospital_id'],
+                'HospitalName'     => $bill['HospitalName'],
+                'HospitalAddress'  => $bill['HospitalAddress'],
+                'Hospital_Contact_no' => $bill['Hospital_Contact_no'],
                 'unique_key'       => $bill['unique_key'],
                 'total_amount'     => $bill['total_amount'],
                 'status'           => $bill['status'],

@@ -20,30 +20,46 @@ class CheckAppointments extends BaseCommand
 
     public function run(array $params)
     {
-        $appointmentModel = new AppointmentModel();
+        try {
+            CLI::write('Starting appointment check...', 'cyan');
+            
+            $appointmentModel = new AppointmentModel();
 
-        $thresholdTime = date('Y-m-d H:i:s' , strtotime('-24 hours'));
+            $thresholdTime = date('Y-m-d H:i:s', strtotime('-24 hours'));
 
+            CLI::write("Checking for pending appointments older than: {$thresholdTime}", 'white');
 
-        //Find pending appointments older than 24 hours
-        $peningAppointments = $appointmentModel
-               ->where('status' , 'pending')
-               ->where('created_at <' , $thresholdTime)
-               ->findAll();
+            //Find pending appointments older than 24 hours
+            $pendingAppointments = $appointmentModel
+                   ->where('status', 'pending')
+                   ->where('created_at <', $thresholdTime)
+                   ->findAll();
 
-        if(empty($peningAppointments))
-        {
-            CLI::write('No pending appointments found older than 24 hours','green');
-            return;
+            if(empty($pendingAppointments))
+            {
+                CLI::write('No pending appointments found older than 24 hours', 'green');
+                return;
+            }
+
+            $ids = array_column($pendingAppointments, 'id');
+
+            CLI::write("Found " . count($ids) . " pending appointment(s) to cancel", 'yellow');
+
+            $result = $appointmentModel
+                ->whereIn('id', $ids)
+                ->set(['status' => 'cancelled'])
+                ->update();
+
+            if($result)
+            {
+                CLI::write("✓ Successfully cancelled " . count($ids) . " pending appointment(s)", 'green');
+            } else {
+                CLI::write("✗ Failed to update appointments", 'red');
+            }
+
+            CLI::write('Appointment check completed', 'cyan');
+        } catch (\Exception $e) {
+            CLI::write('Error: ' . $e->getMessage(), 'red');
         }
-
-        $ids = array_column($peningAppointments, 'id');
-
-        $appointmentModel
-            ->whereIn('id' , $ids)
-            ->set(['status' => 'cancelled'])
-            ->update();
-
-        CLI::write(" " . count($ids) . " pending appointments have been marked as cancelled" , 'yellow');
     }
 }
