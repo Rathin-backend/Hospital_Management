@@ -5,6 +5,7 @@ use App\Controllers\AdminController;
 use App\Controllers\AppointmentController;
 use App\Controllers\BillingController;
 use App\Controllers\HospitalController;
+use App\Models\AppointmentModel;
 
 /**
  * @var RouteCollection $routes
@@ -88,6 +89,9 @@ $routes->group("api" , ["namespace" => "App\Controllers", "filter" => "Auth" ] ,
     $routes->get('list-Doctors', [AdminController::class, 'listDoctors']);
     $routes->get('list-Patients', [AdminController::class, 'listPatients']);
     $routes->get('dashboard/stats' , [AdminController::class , 'stats']);
+    $routes->get('list-All-Doctors', [AdminController::class, 'ListAllDoctors']);
+    $routes->get('list-All-Patients', [AdminController::class, 'ListAllPatients']);
+
 });
 
 
@@ -113,13 +117,11 @@ $routes->group("appointment" , ["namespace" => "App\Controllers" , "filter" => "
     });
 
 
-
     //Routes for Doctor
     $routes->group('' , ['filter' => 'roleDoctor'] , function($routes)
     {
         $routes->post('confirm-Appointment' , [AppointmentController::class , 'confirmAppointment']);
     });
-
 
 
      //Routes for SuperAdmin
@@ -129,13 +131,11 @@ $routes->group("appointment" , ["namespace" => "App\Controllers" , "filter" => "
     });
 
 
-
      //Routes for SuperAdmin + Admin
     $routes->group('' , ['filter' => 'role_SuperAdmin_and_Admin'] , function($routes)
     {
        $routes->get('List-appointments-HospitalWise', [AppointmentController::class, 'ListAppointmentHospitalWise']);
     });
-
 
 
     //Routes for all authenticated users
@@ -147,6 +147,7 @@ $routes->group("appointment" , ["namespace" => "App\Controllers" , "filter" => "
     $routes->post('check-availability', [AppointmentController::class, 'checkAvailability']);
     
     $routes->get('export-csv', [AppointmentController::class, 'ExportAppointmentsCSV']);
+    $routes->get('List-appointments' , [AppointmentController::class , 'ListAppointments'] , );
 });
 
 
@@ -164,7 +165,8 @@ $routes->group('billing' , ["namespace" => "App\Controllers" , "filter" => "Auth
          $routes->post('make-Payment' , [BillingController::class , 'makePayment']);
     });
 
-    $routes->post('list-Payments' , [BillingController::class , 'listPayments'] , );
+    $routes->get('list-Payments' , [BillingController::class , 'listPayments'] , );
+    $routes->post('cancel-Payment' , [BillingController::class , 'cancelPayment'] , );
 });
 
 

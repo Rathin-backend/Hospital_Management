@@ -16,7 +16,7 @@ $(document).ready(function(){
     // Fetch billing details from backend (optional: you can pass all via URL)
     $.ajax({
         url: "http://localhost:8080/billing/list-Payments",
-        method: "POST",
+        method: "GET",
         headers: { Authorization: `Bearer ${token}` },
         success: function(res){
             if(res.status){

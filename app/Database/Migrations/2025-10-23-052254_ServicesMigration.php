@@ -50,6 +50,7 @@ class ServicesMigration extends Migration
 
     }
 
+    
     public function down()
     {
         $this->forge->dropTable("services",true);

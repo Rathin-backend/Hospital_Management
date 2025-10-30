@@ -16,10 +16,11 @@ use App\Models\BillingItemsModel;
 class BillingController extends ResourceController
 {
    private $appointmentModel, $userModel , $db , 
-   $visitRecords , $hospitalModel , $servicesModel , $hospitalservicesModel , $billingsModel , $billingsitemModel;
+   $visitRecords , $hospitalModel , $servicesModel , $hospitalservicesModel , 
+   $billingsModel , $billingsitemModel;
 
 
-   public function __construct()
+public function __construct()
 {
     $this->db = db_connect();
     $this->appointmentModel = new AppointmentModel();
@@ -31,7 +32,6 @@ class BillingController extends ResourceController
     $this->billingsModel = new BillingsModel();
     $this->billingsitemModel = new BillingItemsModel();
 }
-
 
 
 public function listServiceswithPriceHospitalWise()
@@ -96,7 +96,6 @@ public function getConsultationFee()
         ]);
     }
 }
-
 
 
 public function generateBill()
@@ -433,7 +432,54 @@ public function listPayments()
 }
 
 
+public function cancelPayment()
+{
+    try{
+        $validationRules = [
+            "billing_id" => [
+                "rules" => "required"
+            ]
+            ];
 
+        if(!$this->validate($validationRules))
+        {
+            return $this->respond([
+                "status" => "false",
+                "Mssge" => $this->validator->getErrors()
+            ]);
+        }
+
+        $billing_id = $this->request->getVar("billing_id");
+
+        $billingDetails = $this->request->getVar("billingDetails");
+
+        if($billingDetails['status'] != 'pending')
+        {
+            return $this->respond([
+                "status" => false,
+                "Mssge" => "Can oly cancel the payment whose status is pending" 
+            ]);
+        }
+
+        $result = $this->billingsModel->where("id" , $billing_id)
+                                      ->set('status' , 'cancelled')
+                                      ->update();
+
+        if($result)
+        {
+            return $this->respond([
+                "status" => true,
+                "Mssge" => "Cancelled the payment successfully",
+                "data" => $result
+            ]);
+        }
+    }catch(\Exception $e){
+        return $this->respond([
+            "status" => false,
+            "Error" => $e->getMessage()
+        ]);
+    }
+}
 
 
 private function generateUniqueTxnId()

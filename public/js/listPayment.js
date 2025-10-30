@@ -7,7 +7,7 @@ $(document).ready(function () {
     function fetchPayments(statusFilter = "all"){
         $.ajax({
             url: apiUrl,
-            method: "POST",
+            method: "GET",
             headers: { Authorization: `Bearer ${token}` },
             data: {},
             success: function(res){

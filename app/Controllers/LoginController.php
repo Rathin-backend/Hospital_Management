@@ -58,14 +58,12 @@ public function register() // Oly patients can Register
         $role = "2";
         $phone_no = $this->request->getVar("phone_no");
 
-        $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
-
         $data = [
             "name" => $name,
             "email" => $email,
             "gender" => $gender,
             "role" => $role,
-            "password" => $hashedPassword,
+            "password" => $password,
             "problem" => $problem,
             "phone_no" => $phone_no
         ];
@@ -107,26 +105,29 @@ public function login()
     $password = $this->request->getVar('password');
     $role = $this->request->getVar('role');
 
-    $user = $this->userModel
-            ->where("email", $email)
-            ->where("role", $role)
-            ->where("isDeleted", "0")
-            ->first();
+    // Verifying whether the user exist in DB
+    $user = $this->userModel->where("email" , $email)
+                            ->where("password" , $password)
+                            ->where("role" , $role)
+                            ->where("isDeleted" , "0")
+                            ->first();
+    
 
-        if (!$user) {
-            return $this->respond([
-                "status" => false,
-                "message" => "User not found or deleted"
-            ]);
-        }
+    if(!$user)
+    {
+    return $this->respond([
+        "status" => false,
+        "mssge" => "User does not exist"
+    ]);
+    }
 
-        
-        if (!password_verify($password, $user["password"])) {
-            return $this->respond([
-                "status" => false,
-                "message" => "Invalid email or password"
-            ]);
-        }
+
+    //  if ($user["password"] !== $password) {
+    //     return $this->respond([
+    //         "status" => false,
+    //         "mssge" => "Invalid email or password"
+    //     ]);
+    // }
 
     $payloadData = [
                 "iss" => "localhost",
@@ -157,3 +158,5 @@ public function login()
 
    
 }
+
+
