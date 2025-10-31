@@ -65,8 +65,8 @@ class DoctorController extends ResourceController
         "problem" => $problem
        ];
 
-    //    print_r($data);
-    //    exit;
+        //    print_r($data);
+        //    exit;
 
        $result = $this->userModel->insert($data);
 

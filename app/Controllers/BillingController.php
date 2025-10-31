@@ -65,7 +65,6 @@ public function listServiceswithPriceHospitalWise()
 }
 
 
-
 public function getConsultationFee()
 {
     try
@@ -242,7 +241,6 @@ public function generateBill()
             ]);
     }
 }
-
 
 
 public function makePayment()

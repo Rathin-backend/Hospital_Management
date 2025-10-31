@@ -24,6 +24,7 @@ class AdminController extends ResourceController
         $this->db = db_connect();
     }
 
+
 public function addAdmin()
 {
     try{
@@ -158,6 +159,7 @@ public function addHospital()
     }
 }
 
+
 public function addDoctor()
 { 
             $validationRules = [
@@ -233,6 +235,7 @@ public function addDoctor()
     ]);
 
 }
+
 
 public function addPatient()
 {        
@@ -362,107 +365,109 @@ public function ListAdminsHospitalWise()
 }
 
 
-// public function ListDoctors()
-// {
-//     $data = $this->userModel->where("role" , "1")
-//                             ->findAll();
+public function ListDoctors()
+{
+    $data = $this->userModel->where("role" , "1")
+                            ->findAll();
 
     
-//     if($data)
-//     {
-//         return $this->respond([
-//         "status" => true,
-//         "mssge" => "Fetched all the doctors data successfully",
-//         "data" => $data,
-//         ]);
-//     }else{
-//             return $this->respond([
-//         "status" => false,
-//         "mssge" => "Could not fetch the data"
-//         ]);
-//     }
+    if($data)
+    {
+        return $this->respond([
+        "status" => true,
+        "mssge" => "Fetched all the doctors data successfully",
+        "data" => $data,
+        ]);
+    }else{
+            return $this->respond([
+        "status" => false,
+        "mssge" => "Could not fetch the data"
+        ]);
+    }
 
 
-// }
+}
 
 
-// public function ListDoctorsforSuperAdmins()
-// {
-//     $hospital_id = $this->request->getVar("hospital_id");
+public function ListDoctorsforSuperAdmins()
+{
+    $hospital_id = $this->request->getVar("hospital_id");
 
-//     $builder = $this->userModel
-//                     ->select("users.* , hospital.name as HospitalName")
-//                     ->where("users.role" , "1")
-//                     ->join("hospitals as hospital" , "hospital.id = users.hospital_id" , "left")
-//                     ->where("users.isDeleted" , "0");
+    $builder = $this->userModel
+                    ->select("users.* , hospital.name as HospitalName")
+                    ->where("users.role" , "1")
+                    ->join("hospitals as hospital" , "hospital.id = users.hospital_id" , "left")
+                    ->where("users.isDeleted" , "0");
 
-//     //hospital filter
-//     if(!empty($hospital_id))
-//     {
-//         $builder = $builder->where("users.hospital_id" , $hospital_id);
+    //hospital filter
+    if(!empty($hospital_id))
+    {
+        $builder = $builder->where("users.hospital_id" , $hospital_id);
                             
-//     }
+    }
     
-//     $data = $builder->findAll();
+    $data = $builder->findAll();
 
-//     if($data)
-//     {
-//         return $this->respond([
-//         "status" => true,
-//         "mssge" => "Fetched all the doctors data successfully",
-//         "data" => $data,
-//         ]);
-//     }else{
-//             return $this->respond([
-//         "status" => false,
-//         "mssge" => "Could not fetch the data"
-//         ]);
-//     }
+    if($data)
+    {
+        return $this->respond([
+        "status" => true,
+        "mssge" => "Fetched all the doctors data successfully",
+        "data" => $data,
+        ]);
+    }else{
+            return $this->respond([
+        "status" => false,
+        "mssge" => "Could not fetch the data"
+        ]);
+    }
 
 
-// }
+}
 
-// public function ListDoctorsHospitalwise()
-// {
-//     //Shld do some checks
-//     $userRole = $this->request->role;
-//     $hospital_id = $this->request->getVar("hospital_id");
-//     //for Admin - using hospital_id from his token
+
+public function ListDoctorsHospitalwise()
+{
+    //Shld do some checks
+    $userRole = $this->request->role;
+    $hospital_id = $this->request->getVar("hospital_id");
+    //for Admin - using hospital_id from his token
     
 
-//     if(!$hospital_id)
-//     {
-//         //for SuperAdmin
-//         $hospital_id = $this->request->hospital_id; 
+    if(!$hospital_id)
+    {
+        //for SuperAdmin
+        $hospital_id = $this->request->hospital_id; 
         
-//     }
+    }
 
-//     // $data = $this->userModel->where("role" , "1")
-//     //                         ->where("hospital_id" , $hospital_id)
-//     //                         ->findAll(); // role : 0 => oly list Doctors
-//         $data = $this->userModel->select("users.*,
-//                                         hospital.name as HospitalName")
-//                                 ->where("role" , "1")
-//                                 ->where("hospital_id" , $hospital_id)
-//                                 ->where("users.isDeleted" , "0")
-//                                 ->join("hospitals as hospital" , "hospital.id=users.hospital_id" , "left")
-//                                 ->findAll();
+    // $data = $this->userModel->where("role" , "1")
+    //                         ->where("hospital_id" , $hospital_id)
+    //                         ->findAll(); // role : 0 => oly list Doctors
+        $data = $this->userModel->select("users.*,
+                                        hospital.name as HospitalName")
+                                ->where("role" , "1")
+                                ->where("hospital_id" , $hospital_id)
+                                ->where("users.isDeleted" , "0")
+                                ->join("hospitals as hospital" , "hospital.id=users.hospital_id" , "left")
+                                ->findAll();
 
-//     if($data)
-//     {
-//         return $this->respond([
-//         "status" => true,
-//         "mssge" => "Fetched all the doctors data successfully",
-//         "data" => $data,
-//         ]);
-//     }else{
-//             return $this->respond([
-//         "status" => false,
-//         "mssge" => "Could not fetch the data"
-//         ]);
-//     }
+    if($data)
+    {
+        return $this->respond([
+        "status" => true,
+        "mssge" => "Fetched all the doctors data successfully",
+        "data" => $data,
+        ]);
+    }else{
+            return $this->respond([
+        "status" => false,
+        "mssge" => "Could not fetch the data"
+        ]);
+    }
     
-// }
+}
+
 
 public function ListAllDoctors()
 {
@@ -514,126 +519,126 @@ public function ListAllDoctors()
 }
 
 
-// public function ListPatientsHospitalWise()
-// {
-//     try{
-//     //Shld do some checks
-//     $hospital_id = $this->request->hospital_id;
+public function ListPatientsHospitalWise()
+{
+    try{
+    //Shld do some checks
+    $hospital_id = $this->request->hospital_id;
 
 
-//     if(!$hospital_id)
-//     {
-//         $hospital_id = $this->request->getVar("hospital_id");
-//     }
+    if(!$hospital_id)
+    {
+        $hospital_id = $this->request->getVar("hospital_id");
+    }
     
 
-//     $data = $this->appointmentModel->select("appointments.patient_id,
-//                                                 users.*")
-//                                     ->where("appointments.hospital_id" , $hospital_id)
-//                                     ->join("users as users" , "users.id=appointments.patient_id")
-//                                     ->groupBy("users.id")
-//                                     ->findAll(); // role : 0 => oly list Doctors
+    $data = $this->appointmentModel->select("appointments.patient_id,
+                                                users.*")
+                                    ->where("appointments.hospital_id" , $hospital_id)
+                                    ->join("users as users" , "users.id=appointments.patient_id")
+                                    ->groupBy("users.id")
+                                    ->findAll(); // role : 0 => oly list Doctors
 
 
-//     if($data)
-//     {
-//         return $this->respond([
-//         "status" => true,
-//         "mssge" => "Fetched all the Patients data successfully",
-//         "data" => $data,
-//         ]);
-//     }else{
-//             return $this->respond([
-//         "status" => false,
-//         "mssge" => "Could not fetch the data"
-//         ]);
-//     }
-//     }
-//     catch(\Exception $e)
-//     {
-//         return $this->respond(([
-//             "status" => false,
-//             "Error" => $e->getMessage()
-//         ]));
-//     }
+    if($data)
+    {
+        return $this->respond([
+        "status" => true,
+        "mssge" => "Fetched all the Patients data successfully",
+        "data" => $data,
+        ]);
+    }else{
+            return $this->respond([
+        "status" => false,
+        "mssge" => "Could not fetch the data"
+        ]);
+    }
+    }
+    catch(\Exception $e)
+    {
+        return $this->respond(([
+            "status" => false,
+            "Error" => $e->getMessage()
+        ]));
+    }
     
     
-// }
+}
 
 
-// public function ListPatients()
-// {
-//     //Shld do some checks
+public function ListPatients()
+{
+    //Shld do some checks
 
-//     $data = $this->userModel->where("role" , "2")
-//                             ->where("isDeleted","0")
-//                             ->findAll(); // role : 0 => oly list Doctors
+    $data = $this->userModel->where("role" , "2")
+                            ->where("isDeleted","0")
+                            ->findAll(); // role : 0 => oly list Doctors
 
 
-//     if($data)
-//     {
-//         return $this->respond([
-//         "status" => true,
-//         "mssge" => "Fetched all the Patients data successfully",
-//         "data" => $data,
-//         ]);
-//     }else{
-//             return $this->respond([
-//         "status" => false,
-//         "mssge" => "Could not fetch the data"
-//         ]);
-//     }
+    if($data)
+    {
+        return $this->respond([
+        "status" => true,
+        "mssge" => "Fetched all the Patients data successfully",
+        "data" => $data,
+        ]);
+    }else{
+            return $this->respond([
+        "status" => false,
+        "mssge" => "Could not fetch the data"
+        ]);
+    }
     
-// }
+}
 
 
-// public function ListPatientsforSuperAdmin()
-// {
-//     //Shld do some checks
-//     try{
+public function ListPatientsforSuperAdmin()
+{
+    //Shld do some checks
+    try{
         
-//     $hospital_id = $this->request->getVar("hospital_id");
+    $hospital_id = $this->request->getVar("hospital_id");
 
-//     $builder = $this->userModel
-//                     ->select("users.*")
-//                     ->where("users.role" , "2")
-//                     ->where("users.isDeleted" , "0")
-//                     ->groupBy("users.id"); // role : 0 => oly list Doctors
+    $builder = $this->userModel
+                    ->select("users.*")
+                    ->where("users.role" , "2")
+                    ->where("users.isDeleted" , "0")
+                    ->groupBy("users.id"); // role : 0 => oly list Doctors
 
-//     if(!empty($hospital_id))
-//     {
-//         $builder = $builder
-//                     ->join("appointments" , "appointments.patient_id = users.id" , "inner")
-//                     ->where("appointments.hospital_id" , $hospital_id)
-//                     ->groupBy("users.id");
-//     }
+    if(!empty($hospital_id))
+    {
+        $builder = $builder
+                    ->join("appointments" , "appointments.patient_id = users.id" , "inner")
+                    ->where("appointments.hospital_id" , $hospital_id)
+                    ->groupBy("users.id");
+    }
 
-//     $data = $builder->findAll();
+    $data = $builder->findAll();
 
 
-//     if($data)
-//     {
-//         return $this->respond([
-//         "status" => true,
-//         "mssge" => "Fetched all the Patients data successfully",
-//         "data" => $data,
-//         ]);
-//     }else{
-//             return $this->respond([
-//         "status" => false,
-//         "mssge" => "Could not fetch the data"
-//         ]);
-//     }
-//     }catch(\Exception $e)
-//     {
-//         return $this->respond([
-//             "status" => false,
-//             "Error" => $e->getMessage()
-//         ]);
-//     }
+    if($data)
+    {
+        return $this->respond([
+        "status" => true,
+        "mssge" => "Fetched all the Patients data successfully",
+        "data" => $data,
+        ]);
+    }else{
+            return $this->respond([
+        "status" => false,
+        "mssge" => "Could not fetch the data"
+        ]);
+    }
+    }catch(\Exception $e)
+    {
+        return $this->respond([
+            "status" => false,
+            "Error" => $e->getMessage()
+        ]);
+    }
 
     
-// }
+}
 
 
 public function listAllPatients()

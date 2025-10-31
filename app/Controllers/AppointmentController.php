@@ -36,595 +36,595 @@ public function __construct()
 }
 
 
-// public function ListAppointmentforDoctorsandAdmins()
-// {
-//     try {
+public function ListAppointmentforDoctorsandAdmins()
+{
+    try {
          
-//         $userRole = $this->request->role;
-//         $userId = $this->request->id;
+        $userRole = $this->request->role;
+        $userId = $this->request->id;
         
-//         $userRole = $this->request->role;
-//         $userId = $this->request->id;
+        $userRole = $this->request->role;
+        $userId = $this->request->id;
 
 
-//         $hospital_id = $this->request->hospital_id; 
+        $hospital_id = $this->request->hospital_id; 
        
 
-//         if(!$hospital_id && $userRole != 2)
-//         {
-//             //for SuperAdmin
-//             $hospital_id = $this->request->getVar("hospital_id");
-//         }
-//         // print_r($userId);
-//         // die;
+        if(!$hospital_id && $userRole != 2)
+        {
+            //for SuperAdmin
+            $hospital_id = $this->request->getVar("hospital_id");
+        }
+        // print_r($userId);
+        // die;
         
-//         //filters
-//         $appointmentId = $this->request->getVar("appointmentId");
-//         $doctorName = $this->request->getVar("doctorName");
-//         $patientName = $this->request->getVar("patientName");
-//         $doctorId    = $this->request->getVar("doctorId");
-//         $patientId   = $this->request->getVar("patientId");
-//         $status      = $this->request->getVar("status");
-//         $date        = $this->request->getVar("date"); // YYYY-MM-DD
-//         $dateFilter  = $this->request->getVar("dateFilter"); // today, this_week, last_month
+        //filters
+        $appointmentId = $this->request->getVar("appointmentId");
+        $doctorName = $this->request->getVar("doctorName");
+        $patientName = $this->request->getVar("patientName");
+        $doctorId    = $this->request->getVar("doctorId");
+        $patientId   = $this->request->getVar("patientId");
+        $status      = $this->request->getVar("status");
+        $date        = $this->request->getVar("date"); // YYYY-MM-DD
+        $dateFilter  = $this->request->getVar("dateFilter"); // today, this_week, last_month
 
         
-//         // base builder with joins
-//         $builder = $this->appointmentModel
-//             ->select("appointments.*,
-//                       doctor.name as DoctorName,
-//                       patient.name as PatientName,
-//                       hospital.name as HospitalName")
-//             ->join("users as doctor", "doctor.id = appointments.doctor_id", "left")
-//             ->join("users as patient", "patient.id = appointments.patient_id", "left")
-//             ->join("hospitals as hospital" , "hospital.id = appointments.hospital_id");
+        // base builder with joins
+        $builder = $this->appointmentModel
+            ->select("appointments.*,
+                      doctor.name as DoctorName,
+                      patient.name as PatientName,
+                      hospital.name as HospitalName")
+            ->join("users as doctor", "doctor.id = appointments.doctor_id", "left")
+            ->join("users as patient", "patient.id = appointments.patient_id", "left")
+            ->join("hospitals as hospital" , "hospital.id = appointments.hospital_id");
 
-//             //hospital based filtering 
-//             if($userRole != "2")
-//             {
-//                 $builder->where("appointments.hospital_id" , $hospital_id);
-//             }
+            //hospital based filtering 
+            if($userRole != "2")
+            {
+                $builder->where("appointments.hospital_id" , $hospital_id);
+            }
 
             
-//             //user-based filtering
-//             if ($userRole == 2) { // Patient
-//             $builder->groupStart()
-//                         ->where("appointments.patient_id", $userId)
-//                         ->orWhere("appointments.parent_id IN (SELECT id FROM appointments WHERE patient_id={$userId})")//fetching child
-//                     ->groupEnd();
-//         } elseif ($userRole == 1) { // Doctor
-//             $builder->groupStart()
-//                         ->where("appointments.doctor_id" , $userId)
-//                         ->orWhere("appointments.parent_id IN (SELECT id FROM appointments WHERE doctor_id = {$userId})")
-//                     ->groupEnd();
-//         }
+            //user-based filtering
+            if ($userRole == 2) { // Patient
+            $builder->groupStart()
+                        ->where("appointments.patient_id", $userId)
+                        ->orWhere("appointments.parent_id IN (SELECT id FROM appointments WHERE patient_id={$userId})")//fetching child
+                    ->groupEnd();
+        } elseif ($userRole == 1) { // Doctor
+            $builder->groupStart()
+                        ->where("appointments.doctor_id" , $userId)
+                        ->orWhere("appointments.parent_id IN (SELECT id FROM appointments WHERE doctor_id = {$userId})")
+                    ->groupEnd();
+        }
 
-//         // search based on apppointmentID
-//         if(!empty($appointmentId))
-//         {
-//             $builder->groupStart()
-//                 ->where("appointments.id", $appointmentId)
-//                 ->orWhere("appointments.parent_id", $appointmentId)
-//             ->groupEnd();
-//         }
-
-
-//         // doctor filters
-//         if (!empty($doctorName)) {
-//             $builder->where("doctor.name", $doctorName);
-//         }
-//         if (!empty($doctorId)) {
-//             $builder->where("appointments.doctor_id", $doctorId);
-//         }
-
-//         // patient filters
-//         if (!empty($patientName)) {
-//             $builder->where("patient.name", $patientName);
-//         }
-//         if (!empty($patientId)) {
-//             $builder->where("appointments.patient_id", $patientId);
-//         }
-
-//         // status filter
-//         if (!empty($status)) {
-//             $builder->where("appointments.status", $status);
-//         }
-
-//         // exact date filter
-//         if (!empty($date)) {
-//             $builder->where("appointments.Appointment_date", $date);
-//         }
-
-//         // date range filters
-//         if (!empty($dateFilter)) {
-//             $today = date('Y-m-d');
-
-//             if ($dateFilter === 'today') {
-//                 $builder->where("appointments.Appointment_date", $today);
-//             }
-
-//             if ($dateFilter === 'this_week') {
-//                 $monday = date('Y-m-d', strtotime('monday this week'));
-//                 $sunday = date('Y-m-d', strtotime('sunday this week'));
-//                 $builder->where("appointments.Appointment_date >=", $monday);
-//                 $builder->where("appointments.Appointment_date <=", $sunday);
-//             }
-
-//             if ($dateFilter === 'last_month') {
-//                 $firstDayLastMonth = date('Y-m-01', strtotime('first day of last month'));
-//                 $lastDayLastMonth  = date('Y-m-t', strtotime('last month'));
-//                 $builder->where("appointments.Appointment_date >=", $firstDayLastMonth);
-//                 $builder->where("appointments.Appointment_date <=", $lastDayLastMonth);
-//             }
-//         }
-
-//         //sorting
-//         $sortBy    = $this->request->getVar("sortBy") ?? "appointments.id";
-//         $sortOrder = $this->request->getVar("sortOrder") ?? "ASC";
-
-//         //pagination
-//         $perPage = 30;
-//         $page    = $this->request->getVar("page") ?? 1;
-
-//         $data  = $builder->orderBy( 'created_at', 'DESC' )->paginate($perPage, 'default', $page);
-//         $pager = $builder->pager;
-
-//         $currentPage = $pager->getCurrentPage();
-//         $totalPages  = $pager->getPageCount();
-
-//         $baseUrl = base_url('appointment/List-appointments');
-
-//         $paginationInfo = [
-//             'total_pages'   => $totalPages,
-//             'previous_page' => ($currentPage > 1)
-//                 ? $baseUrl . '?page=' . ($currentPage - 1)
-//                 : null,
-//             'next_page'     => ($currentPage < $totalPages)
-//                 ? $baseUrl . '?page=' . ($currentPage + 1)
-//                 : null,
-//         ];
-
-//         return $this->respond([
-//             "status" => true,
-//             "Msgge"  => "Successfully fetched all the Appointments list",
-//             "data"   => $data,
-//             "pager"  => $paginationInfo
-//         ]);
-//     } catch (\Exception $e) {
-//         return $this->respond([
-//             "status" => false,
-//             "Error"  => $e->getMessage(),
-//         ]);
-//     }
-// }
+        // search based on apppointmentID
+        if(!empty($appointmentId))
+        {
+            $builder->groupStart()
+                ->where("appointments.id", $appointmentId)
+                ->orWhere("appointments.parent_id", $appointmentId)
+            ->groupEnd();
+        }
 
 
-// public function ListAppointmentforPatients()
-// {
-//     try {
-//         $userRole = $this->request->role;
-//         $userId = $this->request->id;
+        // doctor filters
+        if (!empty($doctorName)) {
+            $builder->where("doctor.name", $doctorName);
+        }
+        if (!empty($doctorId)) {
+            $builder->where("appointments.doctor_id", $doctorId);
+        }
+
+        // patient filters
+        if (!empty($patientName)) {
+            $builder->where("patient.name", $patientName);
+        }
+        if (!empty($patientId)) {
+            $builder->where("appointments.patient_id", $patientId);
+        }
+
+        // status filter
+        if (!empty($status)) {
+            $builder->where("appointments.status", $status);
+        }
+
+        // exact date filter
+        if (!empty($date)) {
+            $builder->where("appointments.Appointment_date", $date);
+        }
+
+        // date range filters
+        if (!empty($dateFilter)) {
+            $today = date('Y-m-d');
+
+            if ($dateFilter === 'today') {
+                $builder->where("appointments.Appointment_date", $today);
+            }
+
+            if ($dateFilter === 'this_week') {
+                $monday = date('Y-m-d', strtotime('monday this week'));
+                $sunday = date('Y-m-d', strtotime('sunday this week'));
+                $builder->where("appointments.Appointment_date >=", $monday);
+                $builder->where("appointments.Appointment_date <=", $sunday);
+            }
+
+            if ($dateFilter === 'last_month') {
+                $firstDayLastMonth = date('Y-m-01', strtotime('first day of last month'));
+                $lastDayLastMonth  = date('Y-m-t', strtotime('last month'));
+                $builder->where("appointments.Appointment_date >=", $firstDayLastMonth);
+                $builder->where("appointments.Appointment_date <=", $lastDayLastMonth);
+            }
+        }
+
+        //sorting
+        $sortBy    = $this->request->getVar("sortBy") ?? "appointments.id";
+        $sortOrder = $this->request->getVar("sortOrder") ?? "ASC";
+
+        //pagination
+        $perPage = 30;
+        $page    = $this->request->getVar("page") ?? 1;
+
+        $data  = $builder->orderBy( 'created_at', 'DESC' )->paginate($perPage, 'default', $page);
+        $pager = $builder->pager;
+
+        $currentPage = $pager->getCurrentPage();
+        $totalPages  = $pager->getPageCount();
+
+        $baseUrl = base_url('appointment/List-appointments');
+
+        $paginationInfo = [
+            'total_pages'   => $totalPages,
+            'previous_page' => ($currentPage > 1)
+                ? $baseUrl . '?page=' . ($currentPage - 1)
+                : null,
+            'next_page'     => ($currentPage < $totalPages)
+                ? $baseUrl . '?page=' . ($currentPage + 1)
+                : null,
+        ];
+
+        return $this->respond([
+            "status" => true,
+            "Msgge"  => "Successfully fetched all the Appointments list",
+            "data"   => $data,
+            "pager"  => $paginationInfo
+        ]);
+    } catch (\Exception $e) {
+        return $this->respond([
+            "status" => false,
+            "Error"  => $e->getMessage(),
+        ]);
+    }
+}
+
+
+public function ListAppointmentforPatients()
+{
+    try {
+        $userRole = $this->request->role;
+        $userId = $this->request->id;
         
-//         $userRole = $this->request->role;
-//         $userId = $this->request->id;
+        $userRole = $this->request->role;
+        $userId = $this->request->id;
 
-//         //filters
-//         $appointmentId = $this->request->getVar("appointmentId");
-//         $doctorName = $this->request->getVar("doctorName");
-//         $patientName = $this->request->getVar("patientName");
-//         $doctorId    = $this->request->getVar("doctorId");
-//         $patientId   = $this->request->getVar("patientId");
-//         $status      = $this->request->getVar("status");
-//         $date        = $this->request->getVar("date"); // YYYY-MM-DD
-//         $dateFilter  = $this->request->getVar("dateFilter");// today, this_week, last_month
-//         $hospital_id = $this->request->getVar("hospital_id"); 
+        //filters
+        $appointmentId = $this->request->getVar("appointmentId");
+        $doctorName = $this->request->getVar("doctorName");
+        $patientName = $this->request->getVar("patientName");
+        $doctorId    = $this->request->getVar("doctorId");
+        $patientId   = $this->request->getVar("patientId");
+        $status      = $this->request->getVar("status");
+        $date        = $this->request->getVar("date"); // YYYY-MM-DD
+        $dateFilter  = $this->request->getVar("dateFilter");// today, this_week, last_month
+        $hospital_id = $this->request->getVar("hospital_id"); 
 
  
-//         // base builder with joins
-//         $builder = $this->appointmentModel
-//             ->select("appointments.*,
-//                       doctor.name as DoctorName,
-//                       patient.name as PatientName,
-//                       hospital.name as HospitalName")
-//             ->join("users as doctor", "doctor.id = appointments.doctor_id", "left")
-//             ->join("users as patient", "patient.id = appointments.patient_id", "left")
-//             ->join("hospitals as hospital" , "hospital.id=appointments.hospital_id");
+        // base builder with joins
+        $builder = $this->appointmentModel
+            ->select("appointments.*,
+                      doctor.name as DoctorName,
+                      patient.name as PatientName,
+                      hospital.name as HospitalName")
+            ->join("users as doctor", "doctor.id = appointments.doctor_id", "left")
+            ->join("users as patient", "patient.id = appointments.patient_id", "left")
+            ->join("hospitals as hospital" , "hospital.id=appointments.hospital_id");
 
             
 
             
-//             //user-based filtering
-//             if ($userRole == 2) { // Patient
-//             $builder->groupStart()
-//                         ->where("appointments.patient_id", $userId)
-//                         ->orWhere("appointments.parent_id IN (SELECT id FROM appointments WHERE patient_id={$userId})")//fetching child
-//                     ->groupEnd();
-//         } elseif ($userRole == 1) { // Doctor
-//             $builder->groupStart()
-//                         ->where("appointments.doctor_id" , $userId)
-//                         ->orWhere("appointments.parent_id IN (SELECT id FROM appointments WHERE doctor_id = {$userId})")
-//                     ->groupEnd();
-//         }
+            //user-based filtering
+            if ($userRole == 2) { // Patient
+            $builder->groupStart()
+                        ->where("appointments.patient_id", $userId)
+                        ->orWhere("appointments.parent_id IN (SELECT id FROM appointments WHERE patient_id={$userId})")//fetching child
+                    ->groupEnd();
+        } elseif ($userRole == 1) { // Doctor
+            $builder->groupStart()
+                        ->where("appointments.doctor_id" , $userId)
+                        ->orWhere("appointments.parent_id IN (SELECT id FROM appointments WHERE doctor_id = {$userId})")
+                    ->groupEnd();
+        }
 
-//         // search based on apppointmentID
-//         if(!empty($appointmentId))
-//         {
-//             $builder->groupStart()
-//                 ->where("appointments.id", $appointmentId)
-//                 ->orWhere("appointments.parent_id", $appointmentId)
-//             ->groupEnd();
-//         }
-
-
-//         // doctor filters
-//         if (!empty($doctorName)) {
-//             $builder->where("doctor.name", $doctorName);
-//         }
-//         if (!empty($doctorId)) {
-//             $builder->where("appointments.doctor_id", $doctorId);
-//         }
-
-//         // patient filters
-//         if (!empty($patientName)) {
-//             $builder->where("patient.name", $patientName);
-//         }
-//         if (!empty($patientId)) {
-//             $builder->where("appointments.patient_id", $patientId);
-//         }
-
-//         // status filter
-//         if (!empty($status)) {
-//             $builder->where("appointments.status", $status);
-//         }
-
-//         if(!empty($hospital_id))
-//         {
-//             $builder->where("appointments.hospital_id" ,$hospital_id);
-//         }
-
-//         // exact date filter
-//         if (!empty($date)) {
-//             $builder->where("appointments.Appointment_date", $date);
-//         }
-
-//         // date range filters
-//         if (!empty($dateFilter)) {
-//             $today = date('Y-m-d');
-
-//             if ($dateFilter === 'today') {
-//                 $builder->where("appointments.Appointment_date", $today);
-//             }
-
-//             if ($dateFilter === 'this_week') {
-//                 $monday = date('Y-m-d', strtotime('monday this week'));
-//                 $sunday = date('Y-m-d', strtotime('sunday this week'));
-//                 $builder->where("appointments.Appointment_date >=", $monday);
-//                 $builder->where("appointments.Appointment_date <=", $sunday);
-//             }
-
-//             if ($dateFilter === 'last_month') {
-//                 $firstDayLastMonth = date('Y-m-01', strtotime('first day of last month'));
-//                 $lastDayLastMonth  = date('Y-m-t', strtotime('last month'));
-//                 $builder->where("appointments.Appointment_date >=", $firstDayLastMonth);
-//                 $builder->where("appointments.Appointment_date <=", $lastDayLastMonth);
-//             }
-//         }
-
-//         //sorting
-//         $sortBy    = $this->request->getVar("sortBy") ?? "appointments.id";
-//         $sortOrder = $this->request->getVar("sortOrder") ?? "ASC";
-
-//         //pagination
-//         $perPage = 30;
-//         $page    = $this->request->getVar("page") ?? 1;
-
-//         $data  = $builder->orderBy('created_at', 'DESC')->paginate($perPage, 'default', $page);
-//         $pager = $builder->pager;
-
-//         $currentPage = $pager->getCurrentPage();
-//         $totalPages  = $pager->getPageCount();
-
-//         $baseUrl = base_url('appointment/List-appointments');
-
-//         $paginationInfo = [
-//             'total_pages'   => $totalPages,
-//             'previous_page' => ($currentPage > 1)
-//                 ? $baseUrl . '?page=' . ($currentPage - 1)
-//                 : null,
-//             'next_page'     => ($currentPage < $totalPages)
-//                 ? $baseUrl . '?page=' . ($currentPage + 1)
-//                 : null,
-//         ];
-
-//         return $this->respond([
-//             "status" => true,
-//             "Msgge"  => "Successfully fetched all the Appointments list",
-//             "data"   => $data,
-//             "pager"  => $paginationInfo
-//         ]);
-//     } catch (\Exception $e) {
-//         return $this->respond([
-//             "status" => false,
-//             "Error"  => $e->getMessage(),
-//         ]);
-//     }
-// }
+        // search based on apppointmentID
+        if(!empty($appointmentId))
+        {
+            $builder->groupStart()
+                ->where("appointments.id", $appointmentId)
+                ->orWhere("appointments.parent_id", $appointmentId)
+            ->groupEnd();
+        }
 
 
+        // doctor filters
+        if (!empty($doctorName)) {
+            $builder->where("doctor.name", $doctorName);
+        }
+        if (!empty($doctorId)) {
+            $builder->where("appointments.doctor_id", $doctorId);
+        }
 
-// public function ListAppointmentforSuperAdmins()
-// {
-//     try {
-//         $userRole = $this->request->role;
-//         $userId = $this->request->id;
+        // patient filters
+        if (!empty($patientName)) {
+            $builder->where("patient.name", $patientName);
+        }
+        if (!empty($patientId)) {
+            $builder->where("appointments.patient_id", $patientId);
+        }
+
+        // status filter
+        if (!empty($status)) {
+            $builder->where("appointments.status", $status);
+        }
+
+        if(!empty($hospital_id))
+        {
+            $builder->where("appointments.hospital_id" ,$hospital_id);
+        }
+
+        // exact date filter
+        if (!empty($date)) {
+            $builder->where("appointments.Appointment_date", $date);
+        }
+
+        // date range filters
+        if (!empty($dateFilter)) {
+            $today = date('Y-m-d');
+
+            if ($dateFilter === 'today') {
+                $builder->where("appointments.Appointment_date", $today);
+            }
+
+            if ($dateFilter === 'this_week') {
+                $monday = date('Y-m-d', strtotime('monday this week'));
+                $sunday = date('Y-m-d', strtotime('sunday this week'));
+                $builder->where("appointments.Appointment_date >=", $monday);
+                $builder->where("appointments.Appointment_date <=", $sunday);
+            }
+
+            if ($dateFilter === 'last_month') {
+                $firstDayLastMonth = date('Y-m-01', strtotime('first day of last month'));
+                $lastDayLastMonth  = date('Y-m-t', strtotime('last month'));
+                $builder->where("appointments.Appointment_date >=", $firstDayLastMonth);
+                $builder->where("appointments.Appointment_date <=", $lastDayLastMonth);
+            }
+        }
+
+        //sorting
+        $sortBy    = $this->request->getVar("sortBy") ?? "appointments.id";
+        $sortOrder = $this->request->getVar("sortOrder") ?? "ASC";
+
+        //pagination
+        $perPage = 30;
+        $page    = $this->request->getVar("page") ?? 1;
+
+        $data  = $builder->orderBy('created_at', 'DESC')->paginate($perPage, 'default', $page);
+        $pager = $builder->pager;
+
+        $currentPage = $pager->getCurrentPage();
+        $totalPages  = $pager->getPageCount();
+
+        $baseUrl = base_url('appointment/List-appointments');
+
+        $paginationInfo = [
+            'total_pages'   => $totalPages,
+            'previous_page' => ($currentPage > 1)
+                ? $baseUrl . '?page=' . ($currentPage - 1)
+                : null,
+            'next_page'     => ($currentPage < $totalPages)
+                ? $baseUrl . '?page=' . ($currentPage + 1)
+                : null,
+        ];
+
+        return $this->respond([
+            "status" => true,
+            "Msgge"  => "Successfully fetched all the Appointments list",
+            "data"   => $data,
+            "pager"  => $paginationInfo
+        ]);
+    } catch (\Exception $e) {
+        return $this->respond([
+            "status" => false,
+            "Error"  => $e->getMessage(),
+        ]);
+    }
+}
+
+
+
+public function ListAppointmentforSuperAdmins()
+{
+    try {
+        $userRole = $this->request->role;
+        $userId = $this->request->id;
         
-//         $userRole = $this->request->role;
-//         $userId = $this->request->id;
+        $userRole = $this->request->role;
+        $userId = $this->request->id;
         
-//         //filters
-//         $appointmentId = $this->request->getVar("appointmentId");
-//         $doctorName = $this->request->getVar("doctorName");
-//         $patientName = $this->request->getVar("patientName");
-//         $doctorId    = $this->request->getVar("doctorId");
-//         $patientId   = $this->request->getVar("patientId");
-//         $status      = $this->request->getVar("status");
-//         $date        = $this->request->getVar("date"); // YYYY-MM-DD
-//         $dateFilter  = $this->request->getVar("dateFilter"); // today, this_week, last_month
-//         $hospital_id = $this->request->getVar("hospital_id");
+        //filters
+        $appointmentId = $this->request->getVar("appointmentId");
+        $doctorName = $this->request->getVar("doctorName");
+        $patientName = $this->request->getVar("patientName");
+        $doctorId    = $this->request->getVar("doctorId");
+        $patientId   = $this->request->getVar("patientId");
+        $status      = $this->request->getVar("status");
+        $date        = $this->request->getVar("date"); // YYYY-MM-DD
+        $dateFilter  = $this->request->getVar("dateFilter"); // today, this_week, last_month
+        $hospital_id = $this->request->getVar("hospital_id");
 
 
-//         // base builder with joins
-//         $builder = $this->appointmentModel
-//             ->select("appointments.*,
-//                       doctor.name as DoctorName,
-//                       patient.name as PatientName,
-//                       hospital.name as HospitalName")
-//             ->join("users as doctor", "doctor.id = appointments.doctor_id", "left")
-//             ->join("users as patient", "patient.id = appointments.patient_id", "left")
-//             ->join("hospitals as hospital" , "hospital.id = appointments.hospital_id");
+        // base builder with joins
+        $builder = $this->appointmentModel
+            ->select("appointments.*,
+                      doctor.name as DoctorName,
+                      patient.name as PatientName,
+                      hospital.name as HospitalName")
+            ->join("users as doctor", "doctor.id = appointments.doctor_id", "left")
+            ->join("users as patient", "patient.id = appointments.patient_id", "left")
+            ->join("hospitals as hospital" , "hospital.id = appointments.hospital_id");
 
 
-//         // search based on apppointmentID
-//         if(!empty($appointmentId))
-//         {
-//             $builder->groupStart()
-//                 ->where("appointments.id", $appointmentId)
-//                 ->orWhere("appointments.parent_id", $appointmentId)
-//             ->groupEnd();
-//         }
+        // search based on apppointmentID
+        if(!empty($appointmentId))
+        {
+            $builder->groupStart()
+                ->where("appointments.id", $appointmentId)
+                ->orWhere("appointments.parent_id", $appointmentId)
+            ->groupEnd();
+        }
 
 
-//         // doctor filters
-//         if (!empty($doctorName)) {
-//             $builder->where("doctor.name", $doctorName);
-//         }
-//         if (!empty($doctorId)) {
-//             $builder->where("appointments.doctor_id", $doctorId);
-//         }
+        // doctor filters
+        if (!empty($doctorName)) {
+            $builder->where("doctor.name", $doctorName);
+        }
+        if (!empty($doctorId)) {
+            $builder->where("appointments.doctor_id", $doctorId);
+        }
 
-//         //hospital filters
-//         if(!empty($hospital_id))
-//         {
-//             $builder->where("appointments.hospital_id" ,$hospital_id);
-//         }
+        //hospital filters
+        if(!empty($hospital_id))
+        {
+            $builder->where("appointments.hospital_id" ,$hospital_id);
+        }
 
-//         // patient filters
-//         if (!empty($patientName)) {
-//             $builder->where("patient.name", $patientName);
-//         }
+        // patient filters
+        if (!empty($patientName)) {
+            $builder->where("patient.name", $patientName);
+        }
 
-//         if (!empty($patientId)) {
-//             $builder->where("appointments.patient_id", $patientId);
-//         }
+        if (!empty($patientId)) {
+            $builder->where("appointments.patient_id", $patientId);
+        }
 
-//         // status filter
-//         if (!empty($status)) {
-//             $builder->where("appointments.status", $status);
-//         }
+        // status filter
+        if (!empty($status)) {
+            $builder->where("appointments.status", $status);
+        }
 
-//         // exact date filter
-//         if (!empty($date)) {
-//             $builder->where("appointments.Appointment_date", $date);
-//         }
+        // exact date filter
+        if (!empty($date)) {
+            $builder->where("appointments.Appointment_date", $date);
+        }
 
-//         // date range filters
-//         if (!empty($dateFilter)) {
-//             $today = date('Y-m-d');
+        // date range filters
+        if (!empty($dateFilter)) {
+            $today = date('Y-m-d');
 
-//             if ($dateFilter === 'today') {
-//                 $builder->where("appointments.Appointment_date", $today);
-//             }
+            if ($dateFilter === 'today') {
+                $builder->where("appointments.Appointment_date", $today);
+            }
 
-//             if ($dateFilter === 'this_week') {
-//                 $monday = date('Y-m-d', strtotime('monday this week'));
-//                 $sunday = date('Y-m-d', strtotime('sunday this week'));
-//                 $builder->where("appointments.Appointment_date >=", $monday);
-//                 $builder->where("appointments.Appointment_date <=", $sunday);
-//             }
+            if ($dateFilter === 'this_week') {
+                $monday = date('Y-m-d', strtotime('monday this week'));
+                $sunday = date('Y-m-d', strtotime('sunday this week'));
+                $builder->where("appointments.Appointment_date >=", $monday);
+                $builder->where("appointments.Appointment_date <=", $sunday);
+            }
 
-//             if ($dateFilter === 'last_month') {
-//                 $firstDayLastMonth = date('Y-m-01', strtotime('first day of last month'));
-//                 $lastDayLastMonth  = date('Y-m-t', strtotime('last month'));
-//                 $builder->where("appointments.Appointment_date >=", $firstDayLastMonth);
-//                 $builder->where("appointments.Appointment_date <=", $lastDayLastMonth);
-//             }
-//         }
+            if ($dateFilter === 'last_month') {
+                $firstDayLastMonth = date('Y-m-01', strtotime('first day of last month'));
+                $lastDayLastMonth  = date('Y-m-t', strtotime('last month'));
+                $builder->where("appointments.Appointment_date >=", $firstDayLastMonth);
+                $builder->where("appointments.Appointment_date <=", $lastDayLastMonth);
+            }
+        }
 
-//         //sorting
-//         $sortBy    = $this->request->getVar("sortBy") ?? "appointments.id";
-//         $sortOrder = $this->request->getVar("sortOrder") ?? "ASC";
+        //sorting
+        $sortBy    = $this->request->getVar("sortBy") ?? "appointments.id";
+        $sortOrder = $this->request->getVar("sortOrder") ?? "ASC";
 
-//         //pagination
-//         $perPage = 30;
-//         $page    = $this->request->getVar("page") ?? 1;
+        //pagination
+        $perPage = 30;
+        $page    = $this->request->getVar("page") ?? 1;
 
-//         $data  = $builder->orderBy('created_at', 'DESC')->paginate($perPage, 'default', $page);
-//         $pager = $builder->pager;
+        $data  = $builder->orderBy('created_at', 'DESC')->paginate($perPage, 'default', $page);
+        $pager = $builder->pager;
 
-//         $currentPage = $pager->getCurrentPage();
-//         $totalPages  = $pager->getPageCount();
+        $currentPage = $pager->getCurrentPage();
+        $totalPages  = $pager->getPageCount();
 
-//         $baseUrl = base_url('appointment/List-appointments');
+        $baseUrl = base_url('appointment/List-appointments');
 
-//         $paginationInfo = [
-//             'total_pages'   => $totalPages,
-//             'previous_page' => ($currentPage > 1)
-//                 ? $baseUrl . '?page=' . ($currentPage - 1)
-//                 : null,
-//             'next_page'     => ($currentPage < $totalPages)
-//                 ? $baseUrl . '?page=' . ($currentPage + 1)
-//                 : null,
-//         ];
+        $paginationInfo = [
+            'total_pages'   => $totalPages,
+            'previous_page' => ($currentPage > 1)
+                ? $baseUrl . '?page=' . ($currentPage - 1)
+                : null,
+            'next_page'     => ($currentPage < $totalPages)
+                ? $baseUrl . '?page=' . ($currentPage + 1)
+                : null,
+        ];
 
-//         return $this->respond([
-//             "status" => true,
-//             "Msgge"  => "Successfully fetched all the Appointments list",
-//             "data"   => $data,
-//             "pager"  => $paginationInfo
-//         ]);
-//     } catch (\Exception $e) {
-//         return $this->respond([
-//             "status" => false,
-//             "Error"  => $e->getMessage(),
-//         ]);
-//     }
-// }
+        return $this->respond([
+            "status" => true,
+            "Msgge"  => "Successfully fetched all the Appointments list",
+            "data"   => $data,
+            "pager"  => $paginationInfo
+        ]);
+    } catch (\Exception $e) {
+        return $this->respond([
+            "status" => false,
+            "Error"  => $e->getMessage(),
+        ]);
+    }
+}
 
 
-// public function ListAppointmentHospitalWise()
-// {
-//     try {
-//         $userRole = $this->request->role;
-//         $userId = $this->request->id;
+public function ListAppointmentHospitalWise()
+{
+    try {
+        $userRole = $this->request->role;
+        $userId = $this->request->id;
         
-//         $userRole = $this->request->role;
-//         $userId = $this->request->id;
+        $userRole = $this->request->role;
+        $userId = $this->request->id;
         
-//         //filters
-//         $appointmentId = $this->request->getVar("appointmentId");
-//         $doctorName = $this->request->getVar("doctorName");
-//         $patientName = $this->request->getVar("patientName");
-//         $doctorId    = $this->request->getVar("doctorId");
-//         $patientId   = $this->request->getVar("patientId");
-//         $status      = $this->request->getVar("status");
-//         $date        = $this->request->getVar("date"); // YYYY-MM-DD
-//         $dateFilter  = $this->request->getVar("dateFilter"); // today, this_week, last_month
-//         $hospital_id = $this->request->getVar("hospital_id");
+        //filters
+        $appointmentId = $this->request->getVar("appointmentId");
+        $doctorName = $this->request->getVar("doctorName");
+        $patientName = $this->request->getVar("patientName");
+        $doctorId    = $this->request->getVar("doctorId");
+        $patientId   = $this->request->getVar("patientId");
+        $status      = $this->request->getVar("status");
+        $date        = $this->request->getVar("date"); // YYYY-MM-DD
+        $dateFilter  = $this->request->getVar("dateFilter"); // today, this_week, last_month
+        $hospital_id = $this->request->getVar("hospital_id");
 
 
-//         // base builder with joins
-//         $builder = $this->appointmentModel
-//             ->select("appointments.*,
-//                       doctor.name as DoctorName,
-//                       patient.name as PatientName,
-//                       hospital.name as HospitalName")
-//             ->join("users as doctor", "doctor.id = appointments.doctor_id", "left")
-//             ->join("users as patient", "patient.id = appointments.patient_id", "left")
-//             ->join("hospitals as hospital" , "hospital.id = appointments.hospital_id");
+        // base builder with joins
+        $builder = $this->appointmentModel
+            ->select("appointments.*,
+                      doctor.name as DoctorName,
+                      patient.name as PatientName,
+                      hospital.name as HospitalName")
+            ->join("users as doctor", "doctor.id = appointments.doctor_id", "left")
+            ->join("users as patient", "patient.id = appointments.patient_id", "left")
+            ->join("hospitals as hospital" , "hospital.id = appointments.hospital_id");
 
 
-//         // search based on apppointmentID
-//         if(!empty($appointmentId))
-//         {
-//             $builder->groupStart()
-//                 ->where("appointments.id", $appointmentId)
-//                 ->orWhere("appointments.parent_id", $appointmentId)
-//             ->groupEnd();
-//         }
+        // search based on apppointmentID
+        if(!empty($appointmentId))
+        {
+            $builder->groupStart()
+                ->where("appointments.id", $appointmentId)
+                ->orWhere("appointments.parent_id", $appointmentId)
+            ->groupEnd();
+        }
 
 
-//         // doctor filters
-//         if (!empty($doctorName)) {
-//             $builder->where("doctor.name", $doctorName);
-//         }
-//         if (!empty($doctorId)) {
-//             $builder->where("appointments.doctor_id", $doctorId);
-//         }
+        // doctor filters
+        if (!empty($doctorName)) {
+            $builder->where("doctor.name", $doctorName);
+        }
+        if (!empty($doctorId)) {
+            $builder->where("appointments.doctor_id", $doctorId);
+        }
 
-//         //hospital filters
-//         $builder->where("appointments.hospital_id" ,$hospital_id);
+        //hospital filters
+        $builder->where("appointments.hospital_id" ,$hospital_id);
         
 
-//         // patient filters
-//         if (!empty($patientName)) {
-//             $builder->where("patient.name", $patientName);
-//         }
-//         if (!empty($patientId)) {
-//             $builder->where("appointments.patient_id", $patientId);
-//         }
+        // patient filters
+        if (!empty($patientName)) {
+            $builder->where("patient.name", $patientName);
+        }
+        if (!empty($patientId)) {
+            $builder->where("appointments.patient_id", $patientId);
+        }
 
-//         // status filter
-//         if (!empty($status)) {
-//             $builder->where("appointments.status", $status);
-//         }
+        // status filter
+        if (!empty($status)) {
+            $builder->where("appointments.status", $status);
+        }
 
-//         // exact date filter
-//         if (!empty($date)) {
-//             $builder->where("appointments.Appointment_date", $date);
-//         }
+        // exact date filter
+        if (!empty($date)) {
+            $builder->where("appointments.Appointment_date", $date);
+        }
 
-//         // date range filters
-//         if (!empty($dateFilter)) {
-//             $today = date('Y-m-d');
+        // date range filters
+        if (!empty($dateFilter)) {
+            $today = date('Y-m-d');
 
-//             if ($dateFilter === 'today') {
-//                 $builder->where("appointments.Appointment_date", $today);
-//             }
+            if ($dateFilter === 'today') {
+                $builder->where("appointments.Appointment_date", $today);
+            }
 
-//             if ($dateFilter === 'this_week') {
-//                 $monday = date('Y-m-d', strtotime('monday this week'));
-//                 $sunday = date('Y-m-d', strtotime('sunday this week'));
-//                 $builder->where("appointments.Appointment_date >=", $monday);
-//                 $builder->where("appointments.Appointment_date <=", $sunday);
-//             }
+            if ($dateFilter === 'this_week') {
+                $monday = date('Y-m-d', strtotime('monday this week'));
+                $sunday = date('Y-m-d', strtotime('sunday this week'));
+                $builder->where("appointments.Appointment_date >=", $monday);
+                $builder->where("appointments.Appointment_date <=", $sunday);
+            }
 
-//             if ($dateFilter === 'last_month') {
-//                 $firstDayLastMonth = date('Y-m-01', strtotime('first day of last month'));
-//                 $lastDayLastMonth  = date('Y-m-t', strtotime('last month'));
-//                 $builder->where("appointments.Appointment_date >=", $firstDayLastMonth);
-//                 $builder->where("appointments.Appointment_date <=", $lastDayLastMonth);
-//             }
-//         }
+            if ($dateFilter === 'last_month') {
+                $firstDayLastMonth = date('Y-m-01', strtotime('first day of last month'));
+                $lastDayLastMonth  = date('Y-m-t', strtotime('last month'));
+                $builder->where("appointments.Appointment_date >=", $firstDayLastMonth);
+                $builder->where("appointments.Appointment_date <=", $lastDayLastMonth);
+            }
+        }
 
-//         //sorting
-//         $sortBy    = $this->request->getVar("sortBy") ?? "appointments.id";
-//         $sortOrder = $this->request->getVar("sortOrder") ?? "ASC";
+        //sorting
+        $sortBy    = $this->request->getVar("sortBy") ?? "appointments.id";
+        $sortOrder = $this->request->getVar("sortOrder") ?? "ASC";
 
-//         //pagination
-//         $perPage = 30;
-//         $page    = $this->request->getVar("page") ?? 1;
+        //pagination
+        $perPage = 30;
+        $page    = $this->request->getVar("page") ?? 1;
 
-//         $data  = $builder->orderBy('created_at', 'DESC')->paginate($perPage, 'default', $page);
-//         $pager = $builder->pager;
+        $data  = $builder->orderBy('created_at', 'DESC')->paginate($perPage, 'default', $page);
+        $pager = $builder->pager;
 
-//         $currentPage = $pager->getCurrentPage();
-//         $totalPages  = $pager->getPageCount();
+        $currentPage = $pager->getCurrentPage();
+        $totalPages  = $pager->getPageCount();
 
-//         $baseUrl = base_url('appointment/List-appointments');
+        $baseUrl = base_url('appointment/List-appointments');
 
-//         $paginationInfo = [
-//             'total_pages'   => $totalPages,
-//             'previous_page' => ($currentPage > 1)
-//                 ? $baseUrl . '?page=' . ($currentPage - 1)
-//                 : null,
-//             'next_page'     => ($currentPage < $totalPages)
-//                 ? $baseUrl . '?page=' . ($currentPage + 1)
-//                 : null,
-//         ];
+        $paginationInfo = [
+            'total_pages'   => $totalPages,
+            'previous_page' => ($currentPage > 1)
+                ? $baseUrl . '?page=' . ($currentPage - 1)
+                : null,
+            'next_page'     => ($currentPage < $totalPages)
+                ? $baseUrl . '?page=' . ($currentPage + 1)
+                : null,
+        ];
 
-//         return $this->respond([
-//             "status" => true,
-//             "Msgge"  => "Successfully fetched all the Appointments list",
-//             "data"   => $data,
-//             "pager"  => $paginationInfo
-//         ]);
-//     } catch (\Exception $e) {
-//         return $this->respond([
-//             "status" => false,
-//             "Error"  => $e->getMessage(),
-//         ]);
-//     }
-// }
+        return $this->respond([
+            "status" => true,
+            "Msgge"  => "Successfully fetched all the Appointments list",
+            "data"   => $data,
+            "pager"  => $paginationInfo
+        ]);
+    } catch (\Exception $e) {
+        return $this->respond([
+            "status" => false,
+            "Error"  => $e->getMessage(),
+        ]);
+    }
+}
 
 
 public function ListAppointments()
