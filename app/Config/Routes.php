@@ -5,6 +5,7 @@ use App\Controllers\AdminController;
 use App\Controllers\AppointmentController;
 use App\Controllers\BillingController;
 use App\Controllers\HospitalController;
+use App\Controllers\LoginController;
 use App\Models\AppointmentModel;
 
 /**
@@ -14,8 +15,8 @@ use App\Models\AppointmentModel;
 
 $routes->get('/', 'Home::index');
 
-$routes->post("login"  , "LoginController::login/$1");
-$routes->post("register"  , "LoginController::register");
+$routes->post("login"  , [LoginController::class , 'login']);
+$routes->post("register"  , [LoginController::class , 'register']);
 $routes->get('api/user/(:num)', 'AdminController::getUser/$1');
 $routes->post('api/update-profile', 'AdminController::updateProfile');
 

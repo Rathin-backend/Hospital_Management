@@ -17,14 +17,13 @@ class UserHospitalMappingMigration extends Migration
             "user_id" => [
                 "type" => "INT",
                 "unsigned" => true,
-                "auto_increment" => true,
                 "constraint" => 5
             ],
             "hospital_id" => [
                 "type" => "INT",
-                "auto_increment" => true,
                 "unsigned" => true,
-                "constraint" => 5
+                "constraint" => 5,
+                
             ],
             "role" => [ 
                 "type" => "ENUM",
@@ -32,10 +31,7 @@ class UserHospitalMappingMigration extends Migration
                 "null" => false                            // 1 - doctor
             ],                                             // 2 - patient
                                                            // 3 - superAdmin
-            "created_at" => [
-                "type" => "DATETIME",
-                "default" => "CURRENT_TIMESTAMP",
-            ],
+            "created_at datetime default current_timestamp",
             "updated_at" => [
                 "type" => "DATETIME",
                 "null" => true,
@@ -65,7 +61,7 @@ class UserHospitalMappingMigration extends Migration
 
         $this->forge->addPrimaryKey("id");
         $this->forge->addForeignKey("user_id", "users", "id", "CASCADE", "CASCADE");
-        $this->forge->addForeignKey("hospital_id", "hospitals", "hospital_id", "CASCADE", "CASCADE");
+        $this->forge->addForeignKey("hospital_id", "hospitals", "id", "CASCADE", "CASCADE");
 
         $this->forge->createTable("user_hospital_mapping", true);
     }

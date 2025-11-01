@@ -13,13 +13,17 @@ class HospitalsModel extends Model
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-        "name",
-        "address",
-        "contact_no",
-        "isDeleted",
-        "created_at",
-        "updated_at",
-        "code"
+        'name',
+        'address',
+        'contact_no',
+        'isDeleted',
+        'code',
+        'created_by',
+        'updated_by',
+        'deleted_by',
+        'created_at',
+        'updated_at',
+        'deleted_at'
     ];
 
     protected bool $allowEmptyInserts = false;

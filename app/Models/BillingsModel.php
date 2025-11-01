@@ -13,17 +13,18 @@ class BillingsModel extends Model
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-        "id",
-        "appointment_id",
-        "hospital_id",
-        "unique_key",
-        "total_amount",
-        "created_at",
-        "updated_at",
-        "deleted_at",
-        "isDeleted",
-        "status",
-        "transaction_type"
+        'appointment_id',
+        'unique_key',
+        'total_amount',
+        'status',
+        'transaction_type',
+        'isDeleted',
+        'created_by',
+        'updated_by',
+        'deleted_by',
+        'created_at',
+        'updated_at',
+        'deleted_at'
     ];
 
     protected bool $allowEmptyInserts = false;

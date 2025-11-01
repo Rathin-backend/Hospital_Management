@@ -13,14 +13,16 @@ class BillingItemsModel extends Model
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-        "id",
-        "billing_id",
-        "service_id",
-        "amount",
-        "created_at",
-        "updated_at",
-        "deleted_at",
-        "isDeleted"
+        'billing_id',
+        'service_id',
+        'amount',
+        'isDeleted',
+        'created_by',
+        'updated_by',
+        'deleted_by',
+        'created_at',
+        'updated_at',
+        'deleted_at'
     ];
 
     protected bool $allowEmptyInserts = false;
