@@ -35,17 +35,17 @@ class DoctorAndAdminFilter implements FilterInterface
     public function before(RequestInterface $request, $arguments = null)
     {
        try{
-         $userData = $request->userData;
-
-       $user = $this->userModel->find($userData->user->id);
-
-       if(!($user['role'] == '0' || $user['role'] == '1'))
+        $role = $request->role ?? null;
+        
+   
+       if(!($role == '0' || $role == '1' || $role == '2'))
        {
         return Services::response()->setStatusCode(403)->setJSON([
             "status" => false,
             "error" => "Access denied , Only Doctor/Admin can access"
         ]);
        }
+
 
        }
          catch(\Exception $e)

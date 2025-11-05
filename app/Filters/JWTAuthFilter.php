@@ -53,15 +53,29 @@ class JWTAuthFilter implements FilterInterface
         try{
           
             $decoded = JWT::decode($AuthorizationStringArr[1] , new Key(getenv('JWT_KEY') , 'HS256'));
-
+         
             $request->jwtToken = $AuthorizationStringArr[1];
+             
+           
             $request->userData = $decoded;
-            $request->role = $decoded->user->role;
+                 
+             
             $request->id = $decoded->user->id;
-            if(isset($decoded->user->hospital_id)) 
-            {
-               $request->hospital_id = $decoded->user->hospital_id;
+           
+            
+            
+            // If hospital-based context exists
+            if (isset($decoded->user->hospital_id)) {
+                $request->hospital_id = $decoded->user->hospital_id;
             }
+            
+
+            if (isset($decoded->user->role)) {
+                $request->role = $decoded->user->role;
+            }
+            
+
+            
         }catch(\Exception $e)
         {
             return Services::response()->setStatusCode(500)->setJSON([

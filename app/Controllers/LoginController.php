@@ -24,6 +24,96 @@ class LoginController extends ResourceController
         $this->userhospitalMapping = new UserHospitalMappingModel();
     }
 
+
+public function listHospitals()
+{
+    try{
+      $userId = $this->request->id; // Set from middleware
+
+    $mappings = $this->userhospitalMapping
+        ->select("user_hospital_mapping.id as mapping_id, hospitals.id as hospital_id, hospitals.name as hospital_name, user_hospital_mapping.role")
+        ->join("hospitals", "hospitals.id = user_hospital_mapping.hospital_id", "left")
+        ->where("user_hospital_mapping.user_id", $userId)
+        ->where("user_hospital_mapping.isDeleted", 0)
+        ->findAll();
+
+    return $this->respond([
+        "status" => true,
+        "hospitals" => $mappings
+    ]);
+    }catch(\Exception $e)
+    {
+        return $this->respond([
+            "status" => false,
+            "Error" => $e->getMessage(),
+        ]);
+    }
+    
+}
+
+public function setActiveHospital($mappingId)
+ {
+
+    try{
+    $userId = $this->request->id;
+
+    $userDetails = $this->request->userData;
+   
+
+    $mapping = $this->userhospitalMapping
+        ->where("id", $mappingId)
+        ->where("user_id", $userId)
+        ->where("isDeleted", 0)
+        ->first();
+
+    if (!$mapping) {
+        return $this->respond([
+            "status" => false,
+            "message" => "Invalid mapping selection"
+        ], 400);
+    }
+
+    // Create new token with selected hospital + role
+    $payload = [
+        "iss" => "localhost",
+        "aud" => "localhost",
+        "iat" => time(),
+        "exp" => time() + 3600,
+        "user" => [
+            "id" => $userId,
+            "name" => $userDetails->user->name,
+            "email" => $userDetails->user->email,
+            "hospital_id" => $mapping["hospital_id"],
+            "role" => $mapping["role"]
+        ]
+    ];
+
+    $token = JWT::encode($payload, getenv("JWT_KEY"), 'HS256');
+
+    return $this->respond([
+        "status" => true,
+        "message" => "Active hospital set successfully",
+        "token" => $token,
+        "user" => [
+            "id" => $userId,
+            "name" => $userDetails->user->name,
+            "email" => $userDetails->user->email, 
+            "hospital_id" => $mapping["hospital_id"],
+            "role" => $mapping["role"]
+        ]
+    ]);
+    }catch(\Exception $e)
+    {
+        return $this->respond([
+            "status" => false,
+            "Error" => $e->getMessage()
+        ]);
+    }
+
+}
+    
+
+
 public function register()
 {
     $validationRules = [
@@ -68,7 +158,7 @@ public function register()
         "step" => "user insert",
         "error" => $this->db->error()
     ]);
-}
+  }
     $userId = $this->db->insertID();
 
     // Insert into user_mapping as PATIENT role (role = 2)
@@ -85,7 +175,7 @@ public function register()
         "step" => "mapping insert",
         "error" => $this->db->error()
     ]);
-}
+  }
 
     $this->db->transComplete();
     if ($this->db->transStatus() === false) {
@@ -94,7 +184,7 @@ public function register()
         "message" => "Registration failed",
         "error" => $this->db->error()
     ], 500);
-}
+  }
 
     return $this->respond([
         "status" => true,
@@ -106,8 +196,83 @@ public function register()
 
 
 public function login()
-{
+ {
     $validationRules = [
+        "email" => "required|valid_email",
+        "password" => "required|min_length[3]"
+    ];
+
+    if (!$this->validate($validationRules)) {
+        return $this->respond([
+            "status" => false,
+            "message" => "Validation failed",
+            "errors" => $this->validator->getErrors()
+        ]);
+    }
+
+    $email = $this->request->getVar("email");
+    $password = $this->request->getVar("password");
+
+    $user = $this->userModel
+        ->where("email", $email)
+        ->where("isDeleted", 0)
+        ->first();
+
+    if (!$user) {
+        return $this->respond([
+            "status" => false,
+            "message" => "Invalid email or password"
+        ]);
+    }
+
+    
+    if (!password_verify($password, $user["password"])) {
+        return $this->respond([
+            "status" => false,
+            "message" => "Invalid email or password"
+        ]);
+    }
+
+    
+    // $mappings = $this->userhospitalMapping
+    //             ->select("hospital_id, role")
+    //             ->where("user_id", $user["id"])
+    //             ->findAll();
+
+    // JWT Data
+    $payload = [
+        "iss" => "localhost",
+        "aud" => "localhost",
+        "iat" => time(),
+        "exp" => time() + 3600,
+        "user" => [
+            "id" => $user["id"],
+            "email" => $user["email"],
+            "name" => $user["name"],
+            "gender" => $user["gender"]
+        ],
+        
+    ];
+
+    $token = JWT::encode($payload, getenv("JWT_KEY"), 'HS256');
+
+    return $this->respond([
+        "status" => true,
+        "message" => "Login successful",
+        "token" => $token,
+        "user" => [
+            "id" => $user["id"],
+            "name" => $user["name"],
+            "email" => $user["email"]
+        ],
+        
+    ]);
+}
+
+
+public function PatientandSuperAdminlogin()
+ {
+   $validationRules = [
         "email" => "required|valid_email",
         "password" => "required|min_length[3]"
     ];
@@ -149,6 +314,8 @@ public function login()
                 ->where("user_id", $user["id"])
                 ->findAll();
 
+               
+
     // JWT Data
     $payload = [
         "iss" => "localhost",
@@ -159,9 +326,11 @@ public function login()
             "id" => $user["id"],
             "email" => $user["email"],
             "name" => $user["name"],
-            "gender" => $user["gender"]
+            "gender" => $user["gender"],
+            "role"  => $mappings[0]['role'],
+            "hospital_id" => $mappings[0]['hospital_id'] ?? null
         ],
-        "hospitals" => $mappings 
+        
     ];
 
     $token = JWT::encode($payload, getenv("JWT_KEY"), 'HS256');
@@ -173,10 +342,12 @@ public function login()
         "user" => [
             "id" => $user["id"],
             "name" => $user["name"],
-            "email" => $user["email"]
+            "email" => $user["email"],
+            "role"  => $mappings[0]['role'],
+            "hospital_id" => $mappings[0]['hospital_id'] ?? null
         ],
-        "hospitals" => $mappings 
-    ]);
+        
+    ]);   
 }
 
 

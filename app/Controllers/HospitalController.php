@@ -20,8 +20,8 @@ class HospitalController extends ResourceController
 
 public function listAllHospitals()
 {
-try 
-{
+    try 
+    {
     $data = $this->hospitalModel->findAll();
 
     return $this->respond([
@@ -30,12 +30,12 @@ try
     "data" => $data
     ]);
 
-}catch(\Exception $e)
-{
-    return $this->respond([
-        "status" => false,
-        "Error" => $e->getMessage()
-    ]);
+    }catch(\Exception $e)
+    {
+        return $this->respond([
+            "status" => false,
+            "Error" => $e->getMessage()
+        ]);
 }
 
 
@@ -44,7 +44,7 @@ try
 
 public function gethospitalInfo()
 {
-try{
+    try{
     $hospital_id = $this->request->hospital_id;
     if(!$hospital_id)
     {
@@ -60,13 +60,13 @@ try{
     ]);
 
         
-}catch(\Exception $e)
-{
-    return $this->respond([
-        "status" => false,
-        "Error" => $e->getMessage()
-    ]);
-}
+    }catch(\Exception $e)
+    {
+        return $this->respond([
+            "status" => false,
+            "Error" => $e->getMessage()
+        ]);
+    }
 }
 
 }

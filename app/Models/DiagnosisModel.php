@@ -6,7 +6,7 @@ use CodeIgniter\Model;
 
 class DiagnosisModel extends Model
 {
-    protected $table            = 'diagnoses';
+    protected $table            = 'diagnosis';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';

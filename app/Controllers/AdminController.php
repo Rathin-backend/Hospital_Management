@@ -6,6 +6,7 @@ use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\RESTful\ResourceController;
 use App\Models\UserModel;
 use App\Models\AppointmentModel;
+use App\Models\UserHospitalMappingModel;
 use App\Models\HospitalsModel;
 use Exception;
 
@@ -14,6 +15,7 @@ class AdminController extends ResourceController
     private $userModel;
     private $appointmentModel;
     private $hospitalModel;
+    private $userhospitalMapping;
     private $db;
 
     public function __construct()
@@ -21,44 +23,95 @@ class AdminController extends ResourceController
         $this->userModel = new UserModel();
         $this->appointmentModel = new AppointmentModel();
         $this->hospitalModel = new HospitalsModel();
+        $this->userhospitalMapping = new UserHospitalMappingModel();
         $this->db = db_connect();
     }
 
 
-public function addAdmin()
-{
-    try{
-    $validationRules = [
-        "name" => [
-            "rules" => "required"
-        ],
-        "email" => [
-            "rules" => "required"
-        ],
-        "password" => [
-            "rules" => "required"
-        ],
-        "phone_no" => [
-            "rules" => "required"
-        ],
-    ];
-
-    if(!$this->validate($validationRules))
+private function validateDoctorOwnership($doctorId, $loggedRole, $hospitalId)
     {
-        return $this->respond([
-            "status" => false,
-            "Mssge" => $this->validator->getErrors()
-        ]);
+        if ($loggedRole == 3) return true; // SuperAdmin full access
+
+        $doctorMapping = $this->userhospitalMapping
+            ->where("user_id", $doctorId)
+            ->where("deleted_at", null)
+            ->first();
+
+        return $doctorMapping && $doctorMapping['hospital_id'] == $hospitalId;
     }
 
-        $userRole = $this->request->role;
+    private function validatePatientOwnership($patientId, $loggedRole, $hospitalId)
+    {
+        if ($loggedRole == 3) return true;
 
-        if($userRole !== "3")
-        {
-        return $this->respond([
-            "status" => false,
-            "Mssge" => "Oly SuperAdmins can add Admins"
-        ]);
+        // Check latest appointment
+        $appointment = $this->appointmentModel
+            ->where("patient_id", $patientId)
+            ->orderBy("created_at", "DESC")
+            ->first();
+
+        return $appointment && $appointment['hospital_id'] == $hospitalId;
+    }
+
+
+public function addSuperAdmin() // summa - dummy
+{
+    $data = [
+        'name' => 'superadmin200',
+        'email' => 'superadmin200@gmail.com',
+        'password' => password_hash('123456', PASSWORD_BCRYPT),
+        'phone_no' => '9999999999',
+        'gender' => 'Male',
+    ];
+
+    $superId = $this->userModel->insert($data);
+
+
+
+    $this->userhospitalMapping->insert([
+        'user_id' => $superId,
+        'role' => '3',  // SUPERADMIN
+        'created_by' => $superId
+    ]);
+
+    return $this->response->setJSON([
+        'status' => true,
+        'message' => 'SuperAdmin created successfully',
+        'superAdminId' => $superId
+    ]);
+
+}
+
+ 
+
+public function addAdmin()// Done
+{
+    try {
+        $validationRules = [
+            "name" => "required",
+            "email" => "required|valid_email",
+            "password" => "required|min_length[6]",
+            "phone_no" => "required",
+            "gender" => "permit_empty",
+            "hospital_id" => "required|integer",
+        ];
+
+        if (!$this->validate($validationRules)) {
+            return $this->respond([
+                "status" => false,
+                "message" => $this->validator->getErrors()
+            ]);
+        }
+
+        
+        $loggedInRole = $this->request->role;
+        $loggedInId = $this->request->id; // added by JWTAuthFilter
+
+        if ($loggedInRole != "3") { // 3 = SuperAdmin
+            return $this->respond([
+                "status" => false,
+                "message" => "Only SuperAdmins can add Admins"
+            ], ResponseInterface::HTTP_FORBIDDEN);
         }
 
         $name = $this->request->getVar("name");
@@ -67,42 +120,95 @@ public function addAdmin()
         $hospital_id = $this->request->getVar("hospital_id");
         $phone_no = $this->request->getVar("phone_no");
         $gender = $this->request->getVar("gender");
-        
 
-        $data = [
-        "name" => $name,
-        "email" => $email,
-        "password" => $password,
-        "hospital_id" => $hospital_id,
-        "gender" => $gender,
-        "phone_no" => $phone_no,
-        "role" => "0"
-        ];
         
-    //  print_r($data);
-    //  die;
-        $result = $this->userModel->insert($data);
+        $existingUser = $this->userModel->where("email", $email)->first();
 
-        if($result)
-        {
+    if ($existingUser) {
+        $userId = $existingUser['id'];
+
+    // Check if already mapped to this hospital
+    $existingMapping = $this->userhospitalMapping
+        ->where("user_id", $userId)
+        ->where("hospital_id", $hospital_id)
+        ->first();
+
+    if ($existingMapping) {
         return $this->respond([
-            "status" => true,
-            "Mssge" => "Successfully Added Admin"
+            "status" => false,
+            "message" => "This Admin is already assigned to this hospital"
         ]);
+    }
+
+    // Only insert mapping
+    $mappingData = [
+        "user_id" => $userId,
+        "hospital_id" => $hospital_id,
+        "role" => "0",
+        "created_by" => $loggedInId
+    ];
+
+    if (!$this->userhospitalMapping->insert($mappingData)) {
+        return $this->respond(["status" => false, "message" => "Hospital Mapping Failed"]);
+    }
+
+    return $this->respond([
+        "status" => true,
+        "message" => "Admin successfully assigned to another hospital"
+    ]);
+     }
+
+        
+        $userData = [
+            "name" => $name,
+            "email" => $email,
+            "password" => password_hash($password, PASSWORD_BCRYPT),
+            "phone_no" => $phone_no,
+            "gender" => $gender,
+            "created_by" => $loggedInId
+        ];
+
+        $this->db->transBegin();
+
+        $userId = $this->userModel->insert($userData);
+
+        if (!$userId) {
+            $this->db->transRollback();
+            return $this->respond(["status" => false, "message" => "Failed to Create Admin"]);
         }
 
 
-    }catch(\Exception $e)
-    {
-    return $this->respond([
-        "status" => false,
-        "Error" => $e->getMessage()
-    ]);
+        $mappingData = [
+            "user_id" => $userId,
+            "hospital_id" => $hospital_id,
+            "role" => "0",
+            "created_by" => $loggedInId
+        ];
+
+        if (!$this->userhospitalMapping->insert($mappingData)) {
+            $this->db->transRollback();
+            return $this->respond(["status" => false, "message" => "Hospital Mapping Failed"]);
+        }
+
+        $this->db->transCommit();
+
+        return $this->respond([
+            "status" => true,
+            "message" => "Admin successfully added"
+        ], ResponseInterface::HTTP_CREATED);
+
+    } catch (\Exception $e) {
+        return $this->respond([
+            "status" => false,
+            "error" => $e->getMessage()
+        ], ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
     }
 }
 
 
-public function addHospital()
+
+
+public function addHospital()//Done
 {
     try {
         $validationRules = [
@@ -128,6 +234,7 @@ public function addHospital()
                 "Mssge" => $this->validator->getErrors()
             ]);
         }
+        
 
         $name = $this->request->getVar("name");
         $address = $this->request->getVar("address");
@@ -160,364 +267,361 @@ public function addHospital()
 }
 
 
-public function addDoctor()
-{ 
-            $validationRules = [
-            "name" => [
-                "rules" => "required"
-            ],
-            "gender" => [
-                "rules" => "required"
-            ],
-            "expertise" => [
-                "rules" => "required"
-            ],
-            "email" => [
-                "rules" => "required|min_length[3]|valid_email"
-            ],
-            "password" => [
-                "rules" => "required|min_length[3]|"
-            ]
+public function addDoctor()//Done
+{
+    try {
+        $loggedUser = $this->request->userData->user;
+        $loggedUserId = $loggedUser->id;
+        $loggedUserRole = $loggedUser->role;
+
+        
+        $validationRules = [
+            "name" => "required|min_length[3]",
+            "email" => "required|valid_email",
+            "password" => "required|min_length[6]",
+            "gender" => "required",
+            "expertise" => "required"
         ];
 
-        if(!$this->validate($validationRules))
-        {
+        if (!$this->validate($validationRules)) {
             return $this->respond([
                 "status" => false,
-                "mssge" => "Fields are required",
-                "Error" => $this->validator->getErrors(),
-            ]);
+                "errors" => $this->validator->getErrors()
+            ], 400);
         }
 
-    $hospital_id = $this->request->getVar("hospital_id");
-    
-
-    if(!$hospital_id)
-    {
-    $hospital_id = $this->request->hospital_id;
-    }
-
-    $name = $this->request->getVar("name");
-    $email = $this->request->getVar("email");
-    $password = $this->request->getVar("password");
-    $gender = $this->request->getVar("gender");
-    $role = "1";
-    $expertise = $this->request->getVar("expertise");
-
-
-    $data = [
-    "name" => $name,
-    "email" => $email,
-    "password" => $password,
-    "gender" => $gender,
-    "role" => $role,
-    "expertise" => $expertise,
-    "hospital_id" => $hospital_id
-    ];
-
-        //    print_r($data);
-        //    exit;
-
-    $result = $this->userModel->insert($data);
-
-    if(!$result)
-    {
-        return $this->respond([
-        "status" => false,
-        "mssge" => "Could not insert Doctors data",
-    ]);
-    }
-
-    return $this->respond([
-    "status" => true,
-    "mssge" => "Successfully inserted data",
-    "result" => $result
-    ]);
-
-}
-
-
-public function addPatient()
-{        
-    $validationRules = [
-            "name" => [
-                "rules" => "required"
-            ],
-            "gender" => [
-                "rules" => "required"
-            ],
-            "problem" => [
-                "rules" => "required"
-            ],
-            "email" => [
-                "rules" => "required|min_length[3]|valid_email"
-            ],
-            "password" => [
-                "rules" => "required|min_length[3]|"
-            ]
-        ];
-
-        if(!$this->validate($validationRules))
-        {
-            return $this->respond([
-                "status" => false,
-                "mssge" => "Fields are required",
-                "Error" => $this->validator->getErrors(),
-            ]);
-        }
-
+        // Inputs
         $name = $this->request->getVar("name");
         $email = $this->request->getVar("email");
         $password = $this->request->getVar("password");
         $gender = $this->request->getVar("gender");
-        $role = "2";
-        $problem = $this->request->getVar("problem");
+        $expertise = $this->request->getVar("expertise");
 
-        $data = [
-            "name" => $name,
-            "email" => $email,
-            "password" => $password,
-            "gender" => $gender,
-            "role" => $role,
-            "problem" => $problem
-        ];
-
-        //    print_r($data);
-        //    exit;
-
-        $result = $this->userModel->insert($data);
-
-        if(!$result)
-        {
+        
+        if ($loggedUserRole == 0) {  // Admin
+            $hospital_id = $loggedUser->hospital_id;  // From token
+        } elseif ($loggedUserRole == 3) { // SuperAdmin
+            $hospital_id = $this->request->getVar("hospital_id");
+            if (!$hospital_id) {
+                return $this->respond([
+                    "status" => false,
+                    "message" => "Hospital ID required for SuperAdmin"
+                ], 400);
+            }
+        } else {
             return $this->respond([
                 "status" => false,
-                "mssge" => "Could not insert Doctors data",
+                "message" => "Unauthorized: Only Admin/SuperAdmin can add doctors"
+            ], 403);
+        }
+
+        $existingUser = $this->userModel
+            ->where("email", $email)
+            ->where("isDeleted", 0)
+            ->first();
+
+        if ($existingUser) {
+            $userId = $existingUser['id'];
+
+            // Check if already mapped
+            $existingMapping = $this->userhospitalMapping
+                ->where("user_id", $userId)
+                ->where("hospital_id", $hospital_id)
+                ->where("role", 1)
+                ->where("isDeleted", 0)
+                ->first();
+
+            if ($existingMapping) {
+                return $this->respond([
+                    "status" => false,
+                    "message" => "Doctor already exists for this hospital"
+                ]);
+            }
+
+            
+            $mappingData = [
+                "user_id" => $userId,
+                "hospital_id" => $hospital_id,
+                "role" => "1",
+                "created_by" => $loggedUserId
+            ];
+            $this->userhospitalMapping->insert($mappingData);
+
+            return $this->respond([
+                "status" => true,
+                "message" => "Doctor assigned to hospital successfully"
             ]);
         }
 
+        
+        $this->db->transBegin();
+
+        $userData = [
+            "name" => $name,
+            "email" => $email,
+            "gender" => $gender,
+            "expertise" => $expertise, 
+            "password" => password_hash($password, PASSWORD_BCRYPT),
+            "created_by" => $loggedUserId,
+            "updated_by" => $loggedUserId
+        ];
+
+        $userId = $this->userModel->insert($userData);
+
+        if (!$userId) {
+            $this->db->transRollback();
+            return $this->respond(["status" => false, "message" => "User creation failed"]);
+        }
+
+        $mappingData = [
+            "user_id" => $userId,
+            "hospital_id" => $hospital_id,
+            "role" => 1,
+            "created_by" => $loggedUserId
+        ];
+
+        if (!$this->userhospitalMapping->insert($mappingData)) {
+            $this->db->transRollback();
+            return $this->respond(["status" => false, "message" => "Mapping creation failed"]);
+        }
+
+        $this->db->transCommit();
+
         return $this->respond([
             "status" => true,
-            "mssge" => "Successfully inserted data",
-            "result" => $result
-        ]);
+            "message" => "Doctor added successfully",
+            "doctor_id" => $userId
+        ], 201);
+
+    } catch (\Exception $e) {
+        return $this->respond([
+            "status" => false,
+            "error" => $e->getMessage()
+        ], 500);
+    }
 }
+
+
+public function addPatient()//Done
+ {
+    $validationRules = [
+        "name" => "required",
+        "gender" => "required",
+        "email" => "required|valid_email",
+        "password" => "required|min_length[3]"
+    ];
+
+    if (!$this->validate($validationRules)) {
+        return $this->respond([
+            "status" => false,
+            "message" => "Validation error",
+            "error" => $this->validator->getErrors(),
+        ], 400);
+    }
+
+    $name = $this->request->getVar("name");
+    $email = $this->request->getVar("email");
+    $password = password_hash($this->request->getVar("password"), PASSWORD_DEFAULT);
+    $gender = $this->request->getVar("gender");
+
+    // Patient Role
+    $role = 2;
+
+    // logged in user ID from JWT
+    $createdBy = $this->request->user_id ?? null;
+
+    // Check if user already exists
+    $checkUser = $this->userModel->where("email", $email)->first();
+    if ($checkUser) {
+        return $this->respond([
+            "status" => false,
+            "message" => "Patient already exists with this email",
+        ], 409);
+    }
+
+    $this->db->transStart();
+
+    // Insert into Users table
+    $userData = [
+        "name" => $name,
+        "email" => $email,
+        "password" => $password,
+        "gender" => $gender,
+        "created_by" => $createdBy,
+    ];
+
+    $userId = $this->userModel->insert($userData);
+
+    if (!$userId) {
+        $this->db->transRollback();
+        return $this->respond([
+            "status" => false,
+            "message" => "Failed to create patient",
+        ], 500);
+    }
+
+    // Insert into User-Hospital Mapping table with no hospital_id yet
+    $mapping = [
+        "user_id" => $userId,
+        "role" => $role,
+        "created_by" => $createdBy,
+    ];
+
+    $mapResult = $this->userhospitalMapping->insert($mapping);
+
+    if (!$mapResult) {
+        $this->db->transRollback();
+        return $this->respond([
+            "status" => false,
+            "message" => "Failed to create patient role mapping",
+        ], 500);
+    }
+
+    $this->db->transComplete();
+
+    return $this->respond([
+        "status" => true,
+        "message" => "Patient registered successfully",
+        "patientId" => $userId
+    ], 201);
+}
+
 
 
 public function ListAdmins()
 {
-    try{
-    $hospital_id = $this->request->getVar("hospital_id");
+    try {
+        $loggedInUserId = $this->request->id;
+        $loggedUserRole = $this->request->role ?? null;
+        $loggedHospitalId = $this->request->hospital_id ?? null;
 
-    $builder = $this->userModel->select("users.* , hospital.name as HospitalName")
-                                ->where("users.role" , "0")
-                                ->join("hospitals as hospital" , "hospital.id = users.hospital_id")
-                                ->where("users.isDeleted" , "0");
-    //hospital wise Filter
-    if(!empty($hospital_id))
-    {
-        $builder = $builder->where("users.hospital_id" , $hospital_id);
-    }
+        if (!$loggedInUserId || $loggedUserRole === null) {
+            return $this->respond([
+                "status" => false,
+                "message" => "Unauthorized user"
+            ], 401);
+        }
 
-    $data = $builder->findAll();
+        // Role validation → Only Admin (0) & SuperAdmin (3)
+        if (!in_array((int)$loggedUserRole, [0, 3])) {
+            return $this->respond([
+                "status" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
 
-    return $this->respond([
-        "status" => true,
-        "Mssge" => "Successfully fetched the Admins list",
-        "data" => $data
-    ]);
-    }catch(\Exception $e)
-    {
-    return $this->respond([
-        "status" => false,
-        "Error" => $e->getMessage()
-    ]);
+        $filterHospitalId = $this->request->getVar("hospital_id");
+
+        $builder = $this->userModel->select(
+            "users.id, users.name, users.email, users.phone_no, users.gender,
+             h.name as hospital_name, h.id as hospital_id"
+        )
+        ->join("user_hospital_mapping as uhm", "uhm.user_id = users.id")
+        ->join("hospitals as h", "h.id = uhm.hospital_id")
+        ->where("uhm.role", "0") 
+        ->where("users.isDeleted", 0)
+        ->where("uhm.deleted_at", null);
+
+        if ((int)$loggedUserRole === 0) {
+            // Admin → Must have hospital_id in token
+            if (!$loggedHospitalId) {
+                return $this->respond([
+                    "status" => false,
+                    "message" => "Please select a hospital first"
+                ], 400);
+            }
+            $builder->where("uhm.hospital_id", $loggedHospitalId);
+        } 
+        else if ((int)$loggedUserRole === 3) {
+            // SuperAdmin → Optional filter
+            if (!empty($filterHospitalId)) {
+                $builder->where("uhm.hospital_id", $filterHospitalId);
+            }
+        }
+
+        $admins = $builder->findAll();
+
+        return $this->respond([
+            "status" => true,
+            "message" => "Successfully fetched admin list",
+            "count" => count($admins),
+            "data" => $admins
+        ]);
+    } catch (\Exception $e) {
+        return $this->respond([
+            "status" => false,
+            "error" => $e->getMessage()
+        ], 500);
     }
 }
 
 
 
-public function ListAdminsHospitalWise()
-{
-    try{
-    $hospital_id = $this->request->getVar("hospital_id");
-
-    $builder = $this->userModel->select("users.* , hospital.name as HospitalName")
-                                ->where("users.role" , "0")
-                                ->join("hospitals as hospital" , "hospital.id = users.hospital_id")
-                                ->where("users.isDeleted" , "0");
-    
-        $builder = $builder->where("users.hospital_id" , $hospital_id);
-    
-
-    $data = $builder->findAll();
-
-    return $this->respond([
-        "status" => true,
-        "Mssge" => "Successfully fetched the Admins list",
-        "data" => $data
-    ]);
-    }catch(\Exception $e)
-    {
-    return $this->respond([
-        "status" => false,
-        "Error" => $e->getMessage()
-    ]);
-    }
-}
 
 
 public function ListDoctors()
 {
-    $data = $this->userModel->where("role" , "1")
-                            ->findAll();
+    try {
+        $loggedInUserId = $this->request->id;
+        $loggedUserRole = $this->request->role ?? null;
+        $loggedHospitalId = $this->request->hospital_id ?? null;
 
-    
-    if($data)
-    {
-        return $this->respond([
-        "status" => true,
-        "mssge" => "Fetched all the doctors data successfully",
-        "data" => $data,
-        ]);
-    }else{
-            return $this->respond([
-        "status" => false,
-        "mssge" => "Could not fetch the data"
-        ]);
-    }
+        // Optional filter (for SA & Patient)
+        $filterHospitalId = $this->request->getVar("hospital_id");
 
+        $builder = $this->userModel->select(
+            "users.id, users.name, users.email, users.phone_no, users.gender,
+             h.name as hospital_name, h.id as hospital_id"
+        )
+        ->join("user_hospital_mapping as uhm", "uhm.user_id = users.id")
+        ->join("hospitals as h", "h.id = uhm.hospital_id")
+        ->where("uhm.role", 1) // Doctor
+        ->where("users.isDeleted", 0)
+        ->where("uhm.deleted_at", null);
 
-}
-
-
-public function ListDoctorsforSuperAdmins()
-{
-    $hospital_id = $this->request->getVar("hospital_id");
-
-    $builder = $this->userModel
-                    ->select("users.* , hospital.name as HospitalName")
-                    ->where("users.role" , "1")
-                    ->join("hospitals as hospital" , "hospital.id = users.hospital_id" , "left")
-                    ->where("users.isDeleted" , "0");
-
-    //hospital filter
-    if(!empty($hospital_id))
-    {
-        $builder = $builder->where("users.hospital_id" , $hospital_id);
-                            
-    }
-    
-    $data = $builder->findAll();
-
-    if($data)
-    {
-        return $this->respond([
-        "status" => true,
-        "mssge" => "Fetched all the doctors data successfully",
-        "data" => $data,
-        ]);
-    }else{
-            return $this->respond([
-        "status" => false,
-        "mssge" => "Could not fetch the data"
-        ]);
-    }
-
-
-}
-
-
-public function ListDoctorsHospitalwise()
-{
-    //Shld do some checks
-    $userRole = $this->request->role;
-    $hospital_id = $this->request->getVar("hospital_id");
-    //for Admin - using hospital_id from his token
-    
-
-    if(!$hospital_id)
-    {
-        //for SuperAdmin
-        $hospital_id = $this->request->hospital_id; 
         
-    }
+        if (in_array((int)$loggedUserRole, [0, 1])) {
+            // Admin / Doctor → must have hospital_id in token
+            if (!$loggedHospitalId) {
+                return $this->respond([
+                    "status" => false,
+                    "message" => "Please select a hospital first"
+                ], 400);
+            }
 
-    // $data = $this->userModel->where("role" , "1")
-    //                         ->where("hospital_id" , $hospital_id)
-    //                         ->findAll(); // role : 0 => oly list Doctors
-        $data = $this->userModel->select("users.*,
-                                        hospital.name as HospitalName")
-                                ->where("role" , "1")
-                                ->where("hospital_id" , $hospital_id)
-                                ->where("users.isDeleted" , "0")
-                                ->join("hospitals as hospital" , "hospital.id=users.hospital_id" , "left")
-                                ->findAll();
+            $builder->where("uhm.hospital_id", $loggedHospitalId);
+        } 
+        else if (in_array((int)$loggedUserRole, [2, 3])) {
+            // Patient / SuperAdmin → Optional filter
+            if (!empty($filterHospitalId)) {
+                $builder->where("uhm.hospital_id", $filterHospitalId);
+            }
+        }
+        
+        else if (!$loggedInUserId || $loggedUserRole === null) {
+            if (!empty($filterHospitalId)) {
+                $builder->where("uhm.hospital_id", $filterHospitalId);
+            }
+        }
 
-    if($data)
-    {
+        $doctors = $builder->findAll();
+
         return $this->respond([
-        "status" => true,
-        "mssge" => "Fetched all the doctors data successfully",
-        "data" => $data,
+            "status" => true,
+            "message" => "Fetched doctors list successfully",
+            "count" => count($doctors),
+            "data" => $doctors
         ]);
-    }else{
-            return $this->respond([
-        "status" => false,
-        "mssge" => "Could not fetch the data"
-        ]);
+
+    } catch (\Exception $e) {
+        return $this->respond([
+            "status" => false,
+            "error" => $e->getMessage()
+        ], 500);
     }
-    
 }
 
 
-public function ListAllDoctors()
-{
-  try {
-    $userRole = $this->request->role;
-        // print_r("HI");
-        //    die;
-    if($userRole != 2 && $userRole != 3)
-    {
-      $hospitalID = $this->request->hospital_id;
-    }
-
-    $hospital_id = $this->request->getVar("hospital_id");
-    
-
-    $builder = $this->userModel
-                    ->select("users.* , hospital.name as HospitalName")
-                    ->where("users.role" , "1")
-                    ->join("hospitals as hospital" , "hospital.id = users.hospital_id" , "left")
-                    ->where("users.isDeleted" , "0");
-                               
-
-    if($userRole == 0 || $userRole == 1)
-    {
-        $builder = $builder->where("users.hospital_id" , $hospitalID);
-    }
-
-    if(!empty($hospital_id))
-    {
-        $builder->where("users.hospital_id" , $hospital_id);
-    }
-
-    $data = $builder->findAll();
-
-    return $this->respond([
-        "status" => true,
-        "Mssge" => "Successfully fetched the doctors list",
-        "data" => $data
-    ]);
-    
-
-  }catch(\Exception $e)
-  {
-    return $this->respond([
-        "status" => false,
-        "Error" => $e->getMessage()
-    ]);
-  }
-}
 
 
 public function ListPatientsHospitalWise()
@@ -569,539 +673,495 @@ public function ListPatientsHospitalWise()
 
 public function ListPatients()
 {
-    //Shld do some checks
-
-    $data = $this->userModel->where("role" , "2")
-                            ->where("isDeleted","0")
-                            ->findAll(); // role : 0 => oly list Doctors
-
-
-    if($data)
-    {
-        return $this->respond([
-        "status" => true,
-        "mssge" => "Fetched all the Patients data successfully",
-        "data" => $data,
-        ]);
-    }else{
-            return $this->respond([
-        "status" => false,
-        "mssge" => "Could not fetch the data"
-        ]);
-    }
-    
-}
-
-
-public function ListPatientsforSuperAdmin()
-{
-    //Shld do some checks
-    try{
-        
-    $hospital_id = $this->request->getVar("hospital_id");
-
-    $builder = $this->userModel
-                    ->select("users.*")
-                    ->where("users.role" , "2")
-                    ->where("users.isDeleted" , "0")
-                    ->groupBy("users.id"); // role : 0 => oly list Doctors
-
-    if(!empty($hospital_id))
-    {
-        $builder = $builder
-                    ->join("appointments" , "appointments.patient_id = users.id" , "inner")
-                    ->where("appointments.hospital_id" , $hospital_id)
-                    ->groupBy("users.id");
-    }
-
-    $data = $builder->findAll();
-
-
-    if($data)
-    {
-        return $this->respond([
-        "status" => true,
-        "mssge" => "Fetched all the Patients data successfully",
-        "data" => $data,
-        ]);
-    }else{
-            return $this->respond([
-        "status" => false,
-        "mssge" => "Could not fetch the data"
-        ]);
-    }
-    }catch(\Exception $e)
-    {
-        return $this->respond([
-            "status" => false,
-            "Error" => $e->getMessage()
-        ]);
-    }
-
-    
-}
-
-
-public function listAllPatients()
-{
     try {
-        $userRole = $this->request->role;
+        $loggedInUserId = $this->request->id;
+        $loggedUserRole = $this->request->role ?? null;
+        $loggedHospitalId = $this->request->hospital_id ?? null;
+        $filterHospitalId = $this->request->getVar("hospital_id");
 
-        if($userRole == 0 || $userRole == 1)
-        {
-           $hospitalID = $this->request->hospital_id; // Admin & Doctor will always have this from token
-        }
         
-        $filterHospital = $this->request->getVar('hospital_id'); // For SuperAdmin filter
+        if (!$loggedInUserId || $loggedUserRole === null) {
+            return $this->respond([
+                "status" => false,
+                "message" => "Unauthorized access"
+            ], 401);
+        }
 
-        $builder = $this->userModel
-            ->select("users.*, appointments.hospital_id as appointment_hospital_id")
-            ->join("appointments", "appointments.patient_id = users.id", "left") 
-            ->where("users.role", "2")
-            ->where("users.isDeleted", "0")
-            ->groupBy("users.id");
+        $builder = $this->userModel->select(
+            "users.id, users.name, users.email, users.phone_no,
+             users.gender, a.hospital_id, h.name as hospital_name"
+        )
+        ->join("appointments as a", "a.patient_id = users.id")
+        ->join("hospitals as h", "h.id = a.hospital_id")
+        ->where("users.role", 2) // Patients only
+        ->where("users.isDeleted", 0)
+        ->where("a.deleted_at", null)
+        ->groupBy("users.id"); // So patient appears once
 
-            
-
-                if ($userRole == 0 || $userRole == 1) {
-                    // Admin or Doctor — only their hospital
-                    $builder->where("appointments.hospital_id", $hospitalID);
+        
+        switch ((int)$loggedUserRole) {
+            case 3: // SuperAdmin → optional filter
+                if (!empty($filterHospitalId)) {
+                    $builder->where("a.hospital_id", $filterHospitalId);
                 }
-                elseif ($userRole == 3) {
-                    // SuperAdmin — can filter by hospital
-                    if (!empty($filterHospital)) {
-                        $builder->where("appointments.hospital_id", $filterHospital);
-                    }
-                }
-                elseif ($userRole == 2) {
-                    // Patient — They should only see themselves
+                break;
+
+            case 1: // Doctor → Only patients from same hospital
+            case 0: // Admin → Only patients from same hospital
+                if (!$loggedHospitalId) {
                     return $this->respond([
                         "status" => false,
-                        "Mssge" => "Patients cannot access other patient data!"
-                    ]);
+                        "message" => "No hospital assigned for this user"
+                    ], 400);
                 }
-                
+                $builder->where("a.hospital_id", $loggedHospitalId);
+                break;
 
-        $data = $builder->findAll();
+            case 2: // Patient → Only self
+                $builder->where("users.id", $loggedInUserId);
+                break;
+
+            default:
+                return $this->respond([
+                    "status" => false,
+                    "message" => "Access denied"
+                ], 403);
+        }
+
+        $patients = $builder->findAll();
 
         return $this->respond([
             "status" => true,
-            "Mssge" => "Successfully fetched the patients list",
-            "data" => $data
+            "message" => "Successfully fetched patient list",
+            "count" => count($patients),
+            "data" => $patients
         ]);
+
     } catch (\Exception $e) {
         return $this->respond([
             "status" => false,
-            "Error" => $e->getMessage()
-        ]);
+            "error" => $e->getMessage()
+        ], 500);
     }
 }
 
 
-public function editDoctors()
-{
-    try{
-    //    $userData = $this->request->userData;
+// public function ListPatientsforSuperAdmin()
+// {
+//     //Shld do some checks
+//     try{
+        
+//     $hospital_id = $this->request->getVar("hospital_id");
 
-    //     $user = $this->userModel->find($userData->user->id); 
+//     $builder = $this->userModel
+//                     ->select("users.*")
+//                     ->where("users.role" , "2")
+//                     ->where("users.isDeleted" , "0")
+//                     ->groupBy("users.id"); // role : 0 => oly list Doctors
 
-    //     $userRole = $user['role'];
+//     if(!empty($hospital_id))
+//     {
+//         $builder = $builder
+//                     ->join("appointments" , "appointments.patient_id = users.id" , "inner")
+//                     ->where("appointments.hospital_id" , $hospital_id)
+//                     ->groupBy("users.id");
+//     }
 
-
-            $id = $this->request->getVar("doctorId"); 
-            
-            $Doctordata = $this->userModel->where("id" , $id)
-                                            ->where("isDeleted" , "0")
-                                            ->first();
-
-            $name = $this->request->getVar("name") ?? $Doctordata["name"];
-            $role = $this->request->getVar("role") ?? $Doctordata["role"];
-            $gender = $this->request->getVar("gender") ?? $Doctordata["gender"];
-            $expertise = $this->request->getVar("expertise") ?? $Doctordata["expertise"];
-            $email = $this->request->getVar("email") ?? $Doctordata["email"];
-            $phone_no = $this->request->getVar("phone_no") ?? $Doctordata["phone_no"];
+//     $data = $builder->findAll();
 
 
-            $data = [
-                "id" => $id,
-                "name" => $name,
-                "email" => $email,
-                "role" => $role,
-                "gender" => $gender,
-                "expertise" => $expertise,
-                "phone_no" => $phone_no
-            ];
+//     if($data)
+//     {
+//         return $this->respond([
+//         "status" => true,
+//         "mssge" => "Fetched all the Patients data successfully",
+//         "data" => $data,
+//         ]);
+//     }else{
+//             return $this->respond([
+//         "status" => false,
+//         "mssge" => "Could not fetch the data"
+//         ]);
+//     }
+//     }catch(\Exception $e)
+//     {
+//         return $this->respond([
+//             "status" => false,
+//             "Error" => $e->getMessage()
+//         ]);
+//     }
 
-            $result = $this->userModel->update($id , $data);
-
-            if($result)
-            {
-                return $this->respond([
-                    "status" => true,
-                    "mssge" => "updated Successfully",
-                    "result" => $result
-                ]);
-            }else{
-                
-                return $this->respond([
-                    "status" => true,
-                    "mssge" => "Failed to update the Doctors data",
-                    "result" => $result
-                ]);
-            }
-            
-        }catch(\Exception $e)
-        {
-            return $this->respond([
-                "status" => false,
-                "Error" => $e->getMessage(),
-            ]);
-        }
     
-}
+// }
 
 
-public function deleteDoctors()
-{
-    try{
-    //    $userData = $this->request->userData;
+// public function listAllPatients()
+// {
+//     try {
+//         $userRole = $this->request->role;
 
-    //     $user = $this->userModel->find($userData->user->id); 
+//         if($userRole == 0 || $userRole == 1)
+//         {
+//            $hospitalID = $this->request->hospital_id; // Admin & Doctor will always have this from token
+//         }
+        
+//         $filterHospital = $this->request->getVar('hospital_id'); // For SuperAdmin filter
 
-    //     $userRole = $user['role'];
+//         $builder = $this->userModel
+//             ->select("users.*, appointments.hospital_id as appointment_hospital_id")
+//             ->join("appointments", "appointments.patient_id = users.id", "left") 
+//             ->where("users.role", "2")
+//             ->where("users.isDeleted", "0")
+//             ->groupBy("users.id");
 
-            $validationRules = [
-                "doctorId" => [
-                    "rules" => "required"
-                ]
-            ];
-
-
-            if(!$this->validate($validationRules))
-            {
-                return $this->respond([
-                    "status" => false,
-                    "Error" => $this->validator->getErrors(),
-                ]);
-            }
-
-            $id = $this->request->getVar("doctorId"); 
-
-            // print_r($id);
-            // die;
             
-            $result = $this->userModel->where("id" , $id)
-                                        ->set(['isDeleted' => 1])
-                                        ->update();
 
-            if($result)
-            {
-                return $this->respond([
-                    "status" => true,
-                    "mssge" => "Deleted data of DoctorId " . $id ." Successfully",
-                    "result" => $result
-                ]);
-            }else{
+//                 if ($userRole == 0 || $userRole == 1) {
+//                     // Admin or Doctor — only their hospital
+//                     $builder->where("appointments.hospital_id", $hospitalID);
+//                 }
+//                 elseif ($userRole == 3) {
+//                     // SuperAdmin — can filter by hospital
+//                     if (!empty($filterHospital)) {
+//                         $builder->where("appointments.hospital_id", $filterHospital);
+//                     }
+//                 }
+//                 elseif ($userRole == 2) {
+//                     // Patient — They should only see themselves
+//                     return $this->respond([
+//                         "status" => false,
+//                         "Mssge" => "Patients cannot access other patient data!"
+//                     ]);
+//                 }
                 
-                return $this->respond([
-                    "status" => true,
-                    "mssge" => "Failed to Delete the Doctors data",
-                    "result" => $result
-                ]);
+
+//         $data = $builder->findAll();
+
+//         return $this->respond([
+//             "status" => true,
+//             "Mssge" => "Successfully fetched the patients list",
+//             "data" => $data
+//         ]);
+//     } catch (\Exception $e) {
+//         return $this->respond([
+//             "status" => false,
+//             "Error" => $e->getMessage()
+//         ]);
+//     }
+// }
+
+
+public function editDoctor()
+    {
+        try {
+            $loggedRole = $this->request->role;
+            $hospitalId = $this->request->hospital_id;
+            $doctorId = $this->request->getVar("doctorId");
+
+            if (!$this->validateDoctorOwnership($doctorId, $loggedRole, $hospitalId)) {
+                return $this->failForbidden("Permission denied to edit this doctor");
             }
-            
-        }catch(\Exception $e)
-        {
-            return $this->respond([
-                "status" => false,
-                "Error" => $e->getMessage(),
+
+            $doctor = $this->userModel->find($doctorId);
+            if (!$doctor || $doctor['role'] != 1 || $doctor['isDeleted'] == 1) {
+                return $this->failNotFound("Doctor not found");
+            }
+
+            $data = array_filter([
+                "name"      => $this->request->getVar("name"),
+                "email"     => $this->request->getVar("email"),
+                "gender"    => $this->request->getVar("gender"),
+                "expertise" => $this->request->getVar("expertise"),
+                "phone_no"  => $this->request->getVar("phone_no"),
             ]);
-        }
-}
 
+            $this->userModel->update($doctorId, $data);
 
-public function EditPatient()
-{
-    try{
-        
-        $id = $this->request->getVar("patientId"); 
-
-        $PatientData = $this->userModel->where("id" , $id)
-                                        ->where("isDeleted" , "0")
-                                        ->first();
-        $name = $this->request->getVar("name") ?? $PatientData["name"];
-        $role = $this->request->getVar("role") ?? $PatientData["role"];
-        $gender = $this->request->getVar("gender") ?? $PatientData["gender"];
-        $problem = $this->request->getVar("problem") ?? $PatientData["problem"];
-        $email = $this->request->getVar("email") ?? $PatientData['email'];
-
-        
-        $data = [
-            "id" => $id,
-            "name" => $name,
-            "role" => $role,
-            "email" => $email,
-            "gender" => $gender,
-            "problem" => $problem,
-        ];
-
-
-        $result = $this->userModel->update($id , $data);
-
-
-        if($result)
-        {
             return $this->respond([
                 "status" => true,
-                "mssge" => "Edited Patient data Successfully",
-                "result" => $result
+                "message" => "Doctor updated successfully"
             ]);
-        }else{
-            
-            return $this->respond([
-                "status" => true,
-                "mssge" => "Failed to Edit  the Patients data",
-                "result" => $result
-            ]);
+
+        } catch (\Exception $e) {
+            return $this->failServerError($e->getMessage());
         }
-        
-    }catch(\Exception $e)
-    {
-        return $this->respond([
-            "status" => false,
-            "Error" => $e->getMessage(),
-        ]);
     }
-}
 
+   
+public function deleteDoctor()
+    {
+        try {
+            $loggedRole = $this->request->role;
+            $hospitalId = $this->request->hospital_id;
+            $doctorId = $this->request->getVar("doctorId");
 
+            if (!$this->validateDoctorOwnership($doctorId, $loggedRole, $hospitalId)) {
+                return $this->failForbidden("Permission denied to delete this doctor");
+            }
+
+            $this->userModel->update($doctorId, ["isDeleted" => 1]);
+
+            return $this->respond([
+                "status" => true,
+                "message" => "Doctor deleted successfully"
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->failServerError($e->getMessage());
+        }
+    }
+
+   
+public function editPatient()
+    {
+        try {
+            $loggedRole = $this->request->role;
+            $hospitalId = $this->request->hospital_id;
+            $patientId = $this->request->getVar("patientId");
+
+            if (!$this->validatePatientOwnership($patientId, $loggedRole, $hospitalId)) {
+                return $this->failForbidden("Permission denied to edit this patient");
+            }
+
+            $patient = $this->userModel->find($patientId);
+
+            if (!$patient || $patient['role'] != 2 || $patient['isDeleted'] == 1) {
+                return $this->failNotFound("Patient not found");
+            }
+
+            $data = array_filter([
+                "name"    => $this->request->getVar("name"),
+                "email"   => $this->request->getVar("email"),
+                "gender"  => $this->request->getVar("gender"),
+                "problem" => $this->request->getVar("problem"),
+                "phone_no" => $this->request->getVar("phone_no"),
+            ]);
+
+            $this->userModel->update($patientId, $data);
+
+            return $this->respond([
+                "status" => true,
+                "message" => "Patient updated successfully"
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->failServerError($e->getMessage());
+        }
+    }
+
+    
 public function deletePatient()
+    {
+        try {
+            $loggedRole = $this->request->role;
+            $hospitalId = $this->request->hospital_id;
+            $patientId = $this->request->getVar("patientId");
+
+            if (!$this->validatePatientOwnership($patientId, $loggedRole, $hospitalId)) {
+                return $this->failForbidden("Permission denied to delete this patient");
+            }
+
+            $this->userModel->update($patientId, ["isDeleted" => 1]);
+
+            return $this->respond([
+                "status" => true,
+                "message" => "Patient deleted successfully"
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->failServerError($e->getMessage());
+        }
+    }
+
+
+public function getUser()
 {
-    try{
-        
-    $validationRules = [
-        "patientId" =>
-            [
-            "rules" => "required"
-            ]
-        ];
+    try {
+        $loggedInUserId = $this->request->id;
 
-
-        if(!$this->validate($validationRules))
-        {
+        if (!$loggedInUserId) {
             return $this->respond([
                 "status" => false,
-                "Error" => $this->validator->getErrors(),
-            ]);
+                "message" => "Unauthorized access"
+            ], 401);
         }
 
+        $user = $this->userModel
+            ->select("id, name, email, phone_no, gender, expertise, created_at, updated_at")
+            ->find($loggedInUserId);
 
-        $id = $this->request->getVar("patientId"); 
-
-        
-        $result = $this->userModel->where("id" , $id)
-                                    ->set(["isDeleted" => 1])
-                                    ->update();
-                                    
-            
-
-        if($result)
-        {
-            return $this->respond([
-                "status" => true,
-                "mssge" => "Deleted data of PatientId " . $id . " Successfully",
-                "result" => $result
-            ]);
-        }else{
-            
-            return $this->respond([
-                "status" => true,
-                "mssge" => "Failed to Delete the Patients data",
-            ]);
-        }
-        
-        
-    }catch(\Exception $e)
-    {
-        return $this->respond([
-            "status" => false,
-            "Error" => $e->getMessage(),
-        ]);
-    }
-}
-
-
-public function getUser($userId = null)
-{ // for editing his own profile
-    try {
-        if (!$userId) {
-            $userId = $this->request->getVar('userId');
-        }
-        
-        $user = $this->userModel->find($userId);
-        
         if (!$user) {
             return $this->respond([
                 "status" => false,
-                "mssge" => "User not found"
+                "message" => "User profile not found"
             ]);
         }
-        
-        // Return user details without password
-        unset($user['password']);
-        
+
         return $this->respond([
             "status" => true,
+            "message" => "Profile fetched successfully",
             "data" => $user
         ]);
-        
+
     } catch (\Exception $e) {
         return $this->respond([
             "status" => false,
-            "mssge" => "Error fetching user details",
+            "message" => "Error fetching profile",
             "error" => $e->getMessage()
-        ]);
+        ], 500);
     }
 }
-
 
 public function updateProfile()
 {
     try {
-        $userData = $this->request->userData;
-        $userId = $userData->user->id;
-        
-        $validationRules = [
-            "name" => [
-                "rules" => "required"
-            ],
-            "email" => [
-                "rules" => "required|valid_email"
-            ],
-            "gender" => [
-                "rules" => "required"
-            ]
-        ];
-        
-        if (!$this->validate($validationRules)) {
+       
+        $loggedInUserId = $this->request->id;
+        $loggedUserRole = $this->request->role;
+
+        if (!$loggedInUserId) {
             return $this->respond([
                 "status" => false,
-                "mssge" => "Validation failed",
-                "error" => $this->validator->getErrors(),
-            ]);
+                "message" => "Unauthorized"
+            ], 401);
         }
-        
-        $data = [
-            "name" => $this->request->getVar("name"),
-            "email" => $this->request->getVar("email"),
-            "gender" => $this->request->getVar("gender"),
+  
+       
+        $updateData = [
+            "name"       => $this->request->getVar("name") ?? $this->request->userData->user->name,
+            "email"      => $this->request->getVar("email") ?? $this->request->userData->user->email,
+            "gender"     => $this->request->getVar("gender") ?? $this->request->userData->user->gender,
+            "updated_by" => $loggedInUserId
         ];
-        
-        // Add optional fields
-        if ($this->request->getVar("password")) {
-            $data["password"] = $this->request->getVar("password");
+
+        // If password is given → encrypt
+        if (!empty($this->request->getVar("password"))) {
+            $updateData["password"] = password_hash(
+                $this->request->getVar("password"),
+                PASSWORD_BCRYPT
+            );
         }
-        
-        if ($this->request->getVar("expertise")) {
-            $data["expertise"] = $this->request->getVar("expertise");
+
+        // ✅ Only doctors can update expertise
+        if ($loggedUserRole == 1 && $this->request->getVar("expertise")) {
+            $updateData["expertise"] = $this->request->getVar("expertise") ?? $this->request->userData->user->expertise;
         }
-        
-        if ($this->request->getVar("problem")) {
-            $data["problem"] = $this->request->getVar("problem");
-        }
-        
-        $result = $this->userModel->update($userId, $data);
-        
-        if (!$result) {
-            return $this->respond([
-                "status" => false,
-                "mssge" => "Failed to update profile"
-            ]);
-        }
-        
-        // Get updated user data
-        $user = $this->userModel->find($userId);
-        unset($user['password']);
-        
+
+        $this->userModel->update($loggedInUserId, $updateData);
+
+        $updatedUser = $this->userModel
+            ->select("id, name, email, phone_no, gender, expertise, updated_at")
+            ->find($loggedInUserId);
+
         return $this->respond([
             "status" => true,
-            "mssge" => "Profile updated successfully",
-            "data" => $user
+            "message" => "Profile updated successfully",
+            "data" => $updatedUser
         ]);
-        
+
     } catch (\Exception $e) {
         return $this->respond([
             "status" => false,
-            "mssge" => "Error updating profile",
+            "message" => "Error updating profile",
             "error" => $e->getMessage()
-        ]);
+        ], 500);
     }
 }
 
 
 public function stats()
 {
-    try{
-        $userRole = $this->request->role;
-        if($userRole == '3')
-        {
-            $doctorsCount = $this->userModel->where('role' , '1')
-                                            ->where('isDeleted' , '0')
-                                            ->countAllResults();
-            $patientsCount = $this->userModel->where('role' , '2')
-                                             ->where('isDeleted' , '0')
-                                             ->countAllResults();
-            $hospitalsCount = $this->hospitalModel->countAllResults();
+    try {
+        $loggedUserRole = (int)$this->request->role;
+        
 
-            $appointmentsCount = $this->appointmentModel->where('status' , 'booked')->countAllResults();
+        // SUPERADMIN → Full system stats
+        if ($loggedUserRole === 3) {
 
+            // Count Doctors → role 1, active
+            $doctorsCount = $this->userModel
+                ->join("user_hospital_mapping uhm", "uhm.user_id = users.id")
+                ->where("uhm.role", 1)
+                ->where("users.deleted_at", null)
+                ->where("uhm.deleted_at", null)
+                ->countAllResults();
+
+            // Count Unique Patients → via appointments
+            $result = $this->db->table('appointments')
+                ->select('COUNT(DISTINCT patient_id) AS total_patients')
+                ->where('deleted_at', null)
+                ->get()
+                ->getRow();
+
+            $patientsCount = (int)$result->total_patients;
+
+            $hospitalsCount = $this->hospitalModel
+                ->where("deleted_at", null)
+                ->countAllResults();
+
+            $appointmentsCount = $this->appointmentModel
+                ->where('status', 'booked')
+                ->where("deleted_at", null)
+                ->countAllResults();
 
             return $this->respond([
+                'status' => true,
+                'message' => 'SuperAdmin statistics fetched successfully',
                 'doctors' => $doctorsCount,
                 'patients' => $patientsCount,
                 'appointments' => $appointmentsCount,
-                'hospitals'    => $hospitalsCount
+                'hospitals' => $hospitalsCount
             ]);
-
         }
 
 
-        $hospital_id = $this->request->hospital_id;
-        $doctorsCount = $this->userModel->where('role' , '1')
-                                        ->where('isDeleted' , '0')
-                                        ->where('hospital_id' , $hospital_id)
-                                        ->countAllResults();
+        // DOCTOR / ADMIN → Hospital-specific stats
+        $loggedHospitalId = $this->request->hospital_id;
+        if (!$loggedHospitalId) {
+            return $this->respond([
+                "status" => false,
+                "message" => "Hospital not assigned for this user"
+            ], 403);
+        }
 
-        
+        $doctorsCount = $this->userModel
+            ->join("user_hospital_mapping uhm", "uhm.user_id = users.id")
+            ->where("uhm.role", 1)
+            ->where("uhm.hospital_id", $loggedHospitalId)
+            ->where("uhm.deleted_at", null)
+            ->where("users.deleted_at", null)
+            ->countAllResults();
 
-        $query = $this->db->table('appointments')
+        $patientsQuery = $this->db->table('appointments')
             ->select('COUNT(DISTINCT patient_id) AS total_patients')
-            ->where('hospital_id', $hospital_id)
+            ->where('hospital_id', $loggedHospitalId)
+            ->where('deleted_at', null)
             ->get()
             ->getRow();
 
-        $patientsCount = (int) $query->total_patients;
+        $patientsCount = (int)$patientsQuery->total_patients;
 
+        $appointmentsCount = $this->appointmentModel
+            ->where('status', 'booked')
+            ->where('hospital_id', $loggedHospitalId)
+            ->where("deleted_at", null)
+            ->countAllResults();
 
-        $appointmentsCount = $this->appointmentModel->where('status' , 'booked')
-                                                    ->where('hospital_id' , $hospital_id)
-                                                    ->countAllResults();
+        return $this->respond([
+            'status' => true,
+            'message' => 'Hospital wise statistics fetched successfully',
+            'hospital_id' => $loggedHospitalId,
+            'doctors' => $doctorsCount,
+            'patients' => $patientsCount,
+            'appointments' => $appointmentsCount
+        ]);
 
-
-            return $this->respond([
-                'doctors' => $doctorsCount,
-                'patients' => $patientsCount,
-                'appointments' => $appointmentsCount
-            ]);
-
-
-        
-    }catch(\Exception $e)
-    {
+    } catch (\Exception $e) {
         return $this->respond([
             "status" => false,
-            "Error" => $e->getMessage(),
-        ]);
+            "message" => "Error fetching stats",
+            "error" => $e->getMessage()
+        ], 500);
     }
 }
 
