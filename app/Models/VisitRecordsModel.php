@@ -13,20 +13,21 @@ class VisitRecordsModel extends Model
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-        "appointment_id",
-        "patient_id",
-        "doctor_id",
-        "reason",
-        "weight",
-        "bp_systolic",
-        "bp_diastolic",
-        "doctor_comment",
-        "created_at",
-        "updated_at",
-        "deleted_at",
-        "deleted_by",
-        "isDeleted",
-        "hospital_id"
+        'appointment_id',
+        'patient_id',
+        'doctor_id',
+        'reason',
+        'weight',
+        'bp_systolic',
+        'bp_diastolic',
+        'doctor_comment',
+        'isDeleted',
+        'created_by',
+        'updated_by',
+        'deleted_by',
+        'created_at',
+        'updated_at',
+        'deleted_at'
     ];
 
     protected bool $allowEmptyInserts = false;

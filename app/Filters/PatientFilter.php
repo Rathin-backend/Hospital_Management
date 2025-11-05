@@ -34,11 +34,9 @@ class PatientFilter implements FilterInterface
     public function before(RequestInterface $request, $arguments = null)
     {
          try{
-         $userData = $request->userData;
-
-       $user = $this->userModel->find($userData->user->id);
-
-       if($user['role'] != '2')
+            $role = $request->role ?? null;
+         
+       if($role != '2')
        {
         return Services::response()->setStatusCode(403)->setJSON([
             "status" => false,

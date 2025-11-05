@@ -4,25 +4,16 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class AppointmentModel extends Model
+class MasterDiagnosesModel extends Model
 {
-    protected $table            = 'appointments';
+    protected $table            = 'master_diagnoses';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-        'hospital_id',
-        'status',
-        'rescheduled_from',
-        'reschedule_reason',
-        'doctor_id',
-        'patient_id',
-        'Appointment_date',
-        'Appointment_startTime',
-        'Appointment_endTime',
-        'parent_id',
+        'name',
         'isDeleted',
         'created_by',
         'updated_by',
@@ -39,7 +30,7 @@ class AppointmentModel extends Model
     protected array $castHandlers = [];
 
     // Dates
-    protected $useTimestamps = true;
+    protected $useTimestamps = false;
     protected $dateFormat    = 'datetime';
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';

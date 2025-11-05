@@ -5,6 +5,7 @@ use App\Controllers\AdminController;
 use App\Controllers\AppointmentController;
 use App\Controllers\BillingController;
 use App\Controllers\HospitalController;
+use App\Controllers\LoginController;
 use App\Models\AppointmentModel;
 
 /**
@@ -14,10 +15,22 @@ use App\Models\AppointmentModel;
 
 $routes->get('/', 'Home::index');
 
-$routes->post("login"  , "LoginController::login/$1");
-$routes->post("register"  , "LoginController::register");
-$routes->get('api/user/(:num)', 'AdminController::getUser/$1');
-$routes->post('api/update-profile', 'AdminController::updateProfile');
+$routes->post('/loginsuperAdmin' , [AdminController::class , 'addSuperAdmin']);
+
+
+$routes->post("login"  , [LoginController::class , 'login']);
+$routes->post("PatientandSuperAdminlogin" , [LoginController::class , 'PatientandSuperAdminlogin']);
+$routes->post("register"  , [LoginController::class , 'register']);
+
+
+
+$routes->group('auth', ['filter' => 'Auth'], function($routes) {
+    $routes->get('hospitals', [LoginController::class , 'listHospitals']);
+    $routes->post('set-active-hospital/(:num)', [LoginController::class , 'setActiveHospital/$1']);
+    $routes->get('user/(:num)', 'AdminController::getUser/$1');
+$routes->put('update-profile', 'AdminController::updateProfile');
+});
+
 
 
 $routes->group("hospital" ,["namespace" => "namespace App\Controllers" , "filter" => "Auth"] ,  function($routes)
@@ -76,8 +89,8 @@ $routes->group("api" , ["namespace" => "App\Controllers", "filter" => "Auth" ] ,
     $routes->group('' , ['filter' => 'role_SuperAdmin_and_Admin'] , function($routes)
     {
        $routes->post('add-Doctors', [AdminController::class, 'addDoctor']);
-       $routes->delete('Delete-Doctor', [AdminController::class, 'deleteDoctors']);
-       $routes->post('Edit-Doctor', [AdminController::class, 'editDoctors']);
+       $routes->delete('Delete-Doctor', [AdminController::class, 'deleteDoctor']);
+       $routes->post('Edit-Doctor', [AdminController::class, 'editDoctor']);
        $routes->get('list-Doctors-Hospital-Wise', [AdminController::class, 'ListDoctorsHospitalwise']);
        $routes->get('list-Patients-Hospital-Wise', [AdminController::class, 'ListPatientsHospitalWise']);
     });
@@ -149,6 +162,13 @@ $routes->group("appointment" , ["namespace" => "App\Controllers" , "filter" => "
     $routes->get('export-csv', [AppointmentController::class, 'ExportAppointmentsCSV']);
     $routes->get('List-appointments' , [AppointmentController::class , 'ListAppointments'] , );
 });
+
+
+
+
+
+
+
 
 
 

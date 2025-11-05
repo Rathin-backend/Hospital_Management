@@ -4,33 +4,25 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class AppointmentModel extends Model
+class UserHospitalMappingModel extends Model
 {
-    protected $table            = 'appointments';
+    protected $table            = 'user_hospital_mapping';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
+        'user_id',
         'hospital_id',
-        'status',
-        'rescheduled_from',
-        'reschedule_reason',
-        'doctor_id',
-        'patient_id',
-        'Appointment_date',
-        'Appointment_startTime',
-        'Appointment_endTime',
-        'parent_id',
+        'role',
         'isDeleted',
         'created_by',
-        'updated_by',
         'deleted_by',
         'created_at',
         'updated_at',
         'deleted_at'
-    ];
+        ];
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
@@ -39,7 +31,7 @@ class AppointmentModel extends Model
     protected array $castHandlers = [];
 
     // Dates
-    protected $useTimestamps = true;
+    protected $useTimestamps = false;
     protected $dateFormat    = 'datetime';
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';

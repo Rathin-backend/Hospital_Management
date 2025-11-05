@@ -13,13 +13,16 @@ class ServicesModel extends Model
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-        "id",
-        "service_name",
-        "service_type",
-        "description",
-        "created_at",
-        "updated_at",
-        "isDeleted",
+        'service_name',
+        'service_type',
+        'description',
+        'isDeleted',
+        'created_by',
+        'updated_by',
+        'deleted_by',
+        'created_at',
+        'updated_at',
+        'deleted_at'
     ];
 
     protected bool $allowEmptyInserts = false;
