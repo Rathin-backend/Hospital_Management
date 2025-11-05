@@ -354,5 +354,3 @@ public function PatientandSuperAdminlogin()
 
    
 }
-
-
