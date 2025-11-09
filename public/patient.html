@@ -1,119 +1,43 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Patients - Hospital Portal</title>
+
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 <style>
-body {
-  font-family: 'Poppins', sans-serif;
-  background: #f7faff;
-  margin: 0;
-  padding: 0;
-}
+body { font-family: 'Poppins', sans-serif; background: #f7faff; margin:0; padding:0; }
+.container { max-width:900px; margin:50px auto; background:#fff; padding:20px; border-radius:10px; box-shadow:0 8px 20px rgba(0,0,0,0.1); }
 
-/* Container */
-.container {
-  max-width: 900px;
-  margin: 50px auto;
-  background: #fff;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-}
+.hospital-header { text-align:center; font-size:26px; font-weight:600; color:#2a6bc9; margin-bottom:15px; }
 
-/* Animated Welcome Header */
-.hospital-header {
-  text-align: center;
-  font-size: 26px;
-  font-weight: 600;
-  color: #2a6bc9;
-  margin-bottom: 15px;
-  overflow: hidden;
-  white-space: nowrap;
-  border-right: 3px solid #2a6bc9;
-  width: fit-content;
-  margin-left: auto;
-  margin-right: auto;
-  animation: typing 3s steps(30, end), blink .75s step-end infinite;
-}
-
-@keyframes typing {
-  from { width: 0 }
-  to { width: 100% }
-}
-@keyframes blink {
-  from, to { border-color: transparent }
-  50% { border-color: #2a6bc9; }
-}
-
-/* Header */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
+.header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
 .flex-row { display:flex; gap:10px; }
 
-.btn-primary {
-  background: #2a6bc9;
-  color: #fff;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-.btn-primary:hover { background: #1a56b4; }
+.btn-primary{ background:#2a6bc9; color:#fff; padding:8px 16px; border:none; border-radius:5px; cursor:pointer;}
+.btn-primary:hover{ background:#1a56b4}
+.btn-back{ background:#e53e3e !important; color:white;}
+.btn-back:hover{ background:#c53030;}
 
-.btn-back { background:#e53e3e; color:white; }
-.btn-back:hover { background:#c53030; }
+.filter-row{ display:none; margin-bottom:15px; }
+.filter-row select{ padding:6px; border-radius:5px; border:1px solid #ccc; }
 
-/* Filter Row */
-.filter-row {
-  display: none; /* only for SuperAdmin */
-  margin-bottom: 15px;
-}
-.filter-row label {
-  font-weight: 500;
-  margin-right: 10px;
-}
-.filter-row select {
-  padding: 6px 10px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-}
+.table{ width:100%; border-collapse:collapse;}
+.table th,.table td{ padding:12px; border-bottom:1px solid #ddd;}
+.table th{ background:#e8f2ff; color:#2a6bc9; }
 
-/* Table */
-.table { width: 100%; border-collapse: collapse; }
-.table th, .table td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
-.table th { background: #e8f2ff; color: #2a6bc9; }
+.btn-edit{ background:#38a169; color:white; padding:5px 10px; border:none; border-radius:5px; cursor:pointer;}
+.btn-delete{ background:#e53e3e; color:white; padding:5px 10px; border:none; border-radius:5px; cursor:pointer; margin-left:5px;}
 
-.btn-edit { background: #38a169; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; }
-.btn-delete { background: #e53e3e; color: white; padding: 5px 10px; border: none; border-radius: 5px; margin-left: 5px; cursor: pointer; }
-
-/* Modal */
-.modal {
-  display: none;
-  position: fixed;
-  top: 0; left: 0; right:0; bottom:0;
-  background: rgba(0,0,0,0.5);
-  justify-content: center;
-  align-items: center;
-}
-.modal-content {
-  background: #fff;
-  padding: 20px;
-  border-radius: 10px;
-  width: 400px;
-}
-.modal-content label { display:block; margin-top: 10px; }
-.modal-content input, .modal-content select { width: 100%; padding: 8px; margin-top: 5px; }
-.modal-content button { margin-top: 15px; }
+.modal{ display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.5); justify-content:center; align-items:center;}
+.modal-content{ background:white; padding:20px; width:400px; border-radius:10px;}
+.modal-content label{ display:block; margin-top:10px;}
+.modal-content input, .modal-content select{ width:100%; padding:8px; margin-top:5px;}
 </style>
+
 </head>
 <body>
 
@@ -121,62 +45,66 @@ body {
   <div id="hospitalHeader" class="hospital-header"></div>
 
   <div class="header">
-    <h1>Patients List</h1>
+    <h2>Patients List</h2>
     <div class="flex-row">
       <button id="backBtn" class="btn-primary btn-back">Back</button>
       <button id="addPatientBtn" class="btn-primary">Add Patient</button>
     </div>
   </div>
 
-  <!-- Hospital Filter (only for SuperAdmin) -->
+  <!-- SuperAdmin Hospital Filter -->
   <div class="filter-row" id="hospitalFilterRow">
-    <label for="filterHospital">Filter by Hospital:</label>
+    <label>Hospital:</label>
     <select id="filterHospital">
       <option value="">All Hospitals</option>
     </select>
   </div>
 
-  <div class="table-responsive">
-    <table id="patientsTable" class="table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Gender</th>
-          <th>Problem</th>
-          <th>Email</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- patients data will be loaded here -->
-      </tbody>
-    </table>
-  </div>
+  <!-- Patients Table -->
+  <table class="table" id="patientsTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Gender</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 </div>
 
 <!-- Edit Modal -->
 <div id="editModal" class="modal">
   <div class="modal-content">
-    <h2>Edit Patient</h2>
+    <h3>Edit Patient</h3>
+
     <input type="hidden" id="editPatientId">
+
     <label>Name</label>
     <input type="text" id="editName">
+
     <label>Gender</label>
     <select id="editGender">
       <option value="male">Male</option>
       <option value="female">Female</option>
     </select>
-    <label>Problem</label>
-    <input type="text" id="editProblem">
+
     <label>Email</label>
     <input type="email" id="editEmail">
-    <div class="flex-row">
+
+    <label>Phone No</label>
+    <input type="text" id="editPhone">
+
+    <div class="flex-row" style="margin-top:15px">
       <button id="saveEditBtn" class="btn-primary">Save</button>
       <button id="cancelEditBtn" class="btn-back">Cancel</button>
     </div>
   </div>
 </div>
 
-<script src="js/patient.js" defer></script>
+<script src="js/patient.js"></script>
+
 </body>
 </html>

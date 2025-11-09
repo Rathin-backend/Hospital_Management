@@ -1,255 +1,142 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hospital Portal - Login / Register</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <title>Smart Hospital — Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="js/auth.js" defer></script>
+  <script defer src="js/auth.js"></script>
+
   <style>
-    :root {
-      --primary: #2a6bc9;
-      --primary-dark: #1a56b4;
-      --primary-light: #e8f2ff;
-      --accent: #2bc9c9;
-      --text: #2d3748;
-      --text-light: #718096;
-      --success: #38a169;
-      --error: #e53e3e;
-      --white: #ffffff;
-      --gray-50: #f7fafc;
-      --gray-100: #edf2f7;
-      --gray-200: #e2e8f0;
+    :root{
+      --brand:#0b5cff; --brand-dark:#0a49cc;
+      --bg-grad-1:#0b3a91; --bg-grad-2:#0b5cff;
+      --card:#ffffff; --text:#1c1f23; --muted:#6b7280; --ring:#e5e7eb;
     }
+    *{box-sizing:border-box;font-family:Poppins,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{min-height:100vh;margin:0;display:grid;place-items:center;background:linear-gradient(135deg,var(--bg-grad-1),var(--bg-grad-2));}
+    .container{width:min(420px,92vw);background:var(--card);color:var(--text);border-radius:16px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+    header{text-align:center;margin-bottom:16px}
+    header h1{margin:0 0 6px;color:var(--brand);font-size:1.6rem;font-weight:700}
+    header p{margin:0;color:var(--muted);font-size:.95rem}
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: linear-gradient(135deg, #56ccf2 0%, #2f80ed 100%);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      color: var(--text);
-    }
+    .tabs{display:flex;gap:8px;background:#f4f6fb;padding:6px;border-radius:12px;margin:18px 0 16px}
+    .tab-btn{flex:1;padding:10px 12px;border-radius:10px;border:0;background:transparent;font-weight:600;color:#4b5563;cursor:pointer;}
+    .tab-btn.active{background:#fff;color:var(--brand);box-shadow:0 2px 8px rgba(11,92,255,.18)}
 
-    .container {
-      background: var(--white);
-      border-radius: 16px;
-      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
-      width: 420px;
-      overflow: hidden;
-      position: relative;
-    }
+    .view{display:none} .view.active{display:block}
+    label{display:block;margin:10px 0 6px;font-weight:600;font-size:.9rem}
+    input,select{width:100%;padding:12px;border:1px solid var(--ring);border-radius:10px;font-size:.98rem;outline:0;}
+    input:focus,select:focus{border-color:var(--brand)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .btn{width:100%;margin-top:12px;padding:12px;border-radius:10px;border:0;background:var(--brand);color:#fff;font-weight:700;cursor:pointer;}
+    .btn:hover{background:var(--brand-dark)}
+    .msg{text-align:center;font-size:.9rem;margin-top:8px;min-height:20px}
+    .msg.error{color:#dc2626}.msg.success{color:#059669}
 
-    .medical-icon {
-      position: absolute;
-      top: -20px;
-      right: -20px;
-      background: var(--primary);
-      color: white;
-      width: 80px; height: 80px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center; justify-content: center;
-      font-size: 32px;
-      box-shadow: 0 5px 15px rgba(42, 107, 201, 0.3);
-    }
-
-    header {
-      text-align: center;
-      padding: 25px 20px;
-      background: var(--primary);
-      color: var(--white);
-    }
-    header h1 { font-size: 1.8rem; margin: 0; }
-    header p { margin: 5px 0 0; opacity: 0.9; }
-
-    .tabs {
-      display: flex;
-      justify-content: center;
-      background: var(--gray-100);
-      border-bottom: 1px solid var(--gray-200);
-    }
-    .tabs button {
-      flex: 1;
-      padding: 16px;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      font-weight: 500;
-      color: var(--text-light);
-    }
-    .tabs button.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
-
-    .tab-content { display: none; padding: 25px; }
-    .tab-content.active { display: block; }
-
-    h2 { margin-bottom: 20px; font-size: 1.4rem; color: var(--primary); text-align: center; }
-
-    .form-group { margin-bottom: 20px; position: relative; }
-    label { display: block; margin-bottom: 8px; font-weight: 500; }
-
-    .input-with-icon { position: relative; }
-    .input-with-icon i {
-      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-      color: var(--text-light);
-    }
-
-    input, select {
-      width: 100%;
-      padding: 12px 12px 12px 40px;
-      border: 1px solid var(--gray-200);
-      border-radius: 8px;
-      background: var(--gray-50);
-      outline: none;
-    }
-    input:focus, select:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(42,107,201,0.15);
-      background: var(--white);
-    }
-
-    .password-toggle {
-      position: absolute;
-      right: 12px; top: 50%;
-      transform: translateY(-50%);
-      cursor: pointer;
-      color: var(--text-light);
-    }
-
-    .btn-primary {
-      width: 100%;
-      padding: 14px;
-      background: var(--primary);
-      border: none;
-      border-radius: 8px;
-      color: var(--white);
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .btn-primary:hover { background: var(--primary-dark); }
-
-    .message { margin-top: 10px; font-size: 0.9rem; text-align: center; }
+    /* Overlay */
+    .overlay{position:fixed;inset:0;background:rgba(8,13,29,.92);display:none;align-items:center;justify-content:center;padding:24px;z-index:9999;}
+    .chooser{width:min(980px,95vw);color:#e5e7eb;text-align:center;}
+    .chooser h2{margin:0 0 6px}
+    .chooser p{margin:0 0 18px;color:#9aa3b2}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;}
+    .card{background:linear-gradient(180deg,#10172a,#0b1222);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:18px;cursor:pointer;transition:.18s;box-shadow:0 10px 30px rgba(0,0,0,.35);}
+    .card:hover{transform:translateY(-4px);border-color:rgba(11,92,255,.45)}
+    .badge{display:inline-flex;gap:6px;background:rgba(11,92,255,.18);color:#cfe0ff;border:1px solid rgba(11,92,255,.35);padding:6px 10px;border-radius:999px;font-size:.78rem;font-weight:600;margin-bottom:10px}
+    .card h3{margin:4px 0 6px;color:#fff;font-size:1.05rem}
+    .card p{margin:0;color:#9aa3b2;font-size:.92rem}
+    .overlay-close{margin-top:18px;color:#cfe0ff;cursor:pointer;text-decoration:underline}
   </style>
 </head>
 <body>
+
   <div class="container">
-    <div class="medical-icon"><i class="fas fa-hospital"></i></div>
     <header>
-      <h1>Welcome to Hospital Portal</h1>
-      <p>Your health is our priority</p>
+      <h1>Smart Hospital</h1>
+      <p>Secure access for Patients, Doctors, Admins & SuperAdmins</p>
     </header>
 
     <div class="tabs">
-      <button class="tab-link active" data-tab="login">Login</button>
-      <button class="tab-link" data-tab="register">Patient Registration</button>
+      <button class="tab-btn active" data-view="login">Login</button>
+      <button class="tab-btn" data-view="register">Register</button>
     </div>
 
-    <!-- LOGIN -->
-    <div id="login" class="tab-content active">
-      <h2>Login</h2>
-      <form id="loginForm">
-        <div class="form-group">
-          <label for="loginRole">Select Role</label>
-          <div class="input-with-icon">
-            <i class="fas fa-user-shield"></i>
-            <select id="loginRole" required>
-              <option value="">Select Role</option>
-              <option value="0">Admin</option>
-              <option value="1">Doctor</option>
-              <option value="2">Patient</option>
-              <option value="3">SuperAdmin</option>
-            </select>
-          </div>
-        </div>
+    
+    <!-- LOGIN VIEW -->
+    <section id="view-login" class="view active">
+      <label for="loginRole">Role</label>
+      <select id="loginRole">
+        <option value="">Select Role</option>
+        <option value="2">Patient</option>
+        <option value="1">Doctor</option>
+        <option value="0">Admin</option>
+        <option value="3">SuperAdmin</option>
+      </select>
 
-        <div class="form-group">
-          <label for="loginEmail">Email</label>
-          <div class="input-with-icon">
-            <i class="fas fa-envelope"></i>
-            <input type="email" id="loginEmail" required>
-          </div>
-        </div>
+      <label for="loginEmail">Email</label>
+      <input id="loginEmail" type="email" placeholder="you@example.com" />
 
-        <div class="form-group">
-          <label for="loginPassword">Password</label>
-          <div class="input-with-icon">
-            <i class="fas fa-lock"></i>
-            <input type="password" id="loginPassword" required>
-            <span class="password-toggle"><i class="far fa-eye"></i></span>
-          </div>
-        </div>
+      <label for="loginPassword">Password</label>
+      <input id="loginPassword" type="password" placeholder="••••••••" />
 
-        <button type="submit" class="btn-primary">Login</button>
-        <div id="loginMessage" class="message"></div>
-      </form>
-    </div>
+      <button id="btnLogin" class="btn">Sign in</button>
+      <div id="loginMsg" class="msg"></div>
+    </section>
 
-    <!-- REGISTER -->
-    <div id="register" class="tab-content">
-      <h2>Patient Registration</h2>
-      <form id="registerForm">
-        <div class="form-group">
+
+    <!-- REGISTER VIEW (PATIENT) -->
+    <section id="view-register" class="view">
+      <div class="row">
+        <div>
           <label for="regName">Full Name</label>
-          <div class="input-with-icon">
-            <i class="fas fa-user"></i>
-            <input type="text" id="regName" required>
-          </div>
+          <input id="regName" type="text" />
         </div>
-
-        <div class="form-group">
+        <div>
           <label for="regGender">Gender</label>
-          <div class="input-with-icon">
-            <i class="fas fa-venus-mars"></i>
-            <select id="regGender" required>
-              <option value="">Select Gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
+          <select id="regGender">
+            <option value="">Select</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
         </div>
+      </div>
 
-        <div class="form-group">
-          <label for="regProblem">Health Problem</label>
-          <div class="input-with-icon">
-            <i class="fas fa-stethoscope"></i>
-            <input type="text" id="regProblem" required>
-          </div>
-        </div>
+      <label for="regEmail">Email</label>
+      <input id="regEmail" type="email" />
 
-        <div class="form-group">
-          <label for="regPhone">Phone Number</label>
-          <div class="input-with-icon">
-            <i class="fas fa-phone"></i>
-            <input type="text" id="regPhone" required>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="regEmail">Email</label>
-          <div class="input-with-icon">
-            <i class="fas fa-envelope"></i>
-            <input type="email" id="regEmail" required>
-          </div>
-        </div>
-
-        <div class="form-group">
+      <div class="row">
+        <div>
           <label for="regPassword">Password</label>
-          <div class="input-with-icon">
-            <i class="fas fa-lock"></i>
-            <input type="password" id="regPassword" required>
-            <span class="password-toggle"><i class="far fa-eye"></i></span>
-          </div>
+          <input id="regPassword" type="password" />
         </div>
+        <div>
+          <label for="regPhone">Phone (optional)</label>
+          <input id="regPhone" type="text" />
+        </div>
+      </div>
 
-        <button type="submit" class="btn-primary">Register</button>
-        <div id="registerMessage" class="message"></div>
-      </form>
+      <button id="btnRegister" class="btn">Create patient account</button>
+      <div id="registerMsg" class="msg"></div>
+    </section>
+  </div>
+
+
+
+  <!-- HOSPITAL + ROLE SELECT OVERLAY -->
+  <div class="overlay" id="selectOverlay" style="display:none">
+    <div class="chooser">
+      <h2>Select your hospital & role</h2>
+      <p>Pick how you want to continue. You can be an Admin and/or Doctor in the same or different hospitals.</p>
+      <div id="cardGrid" class="cards"></div>
+      <div class="overlay-close" id="closeOverlay">Close</div>
     </div>
   </div>
+
 </body>
 </html>

@@ -51,9 +51,9 @@ public function listHospitals()
     
 }
 
+
 public function setActiveHospital($mappingId)
  {
-
     try{
     $userId = $this->request->id;
 
@@ -116,243 +116,243 @@ public function setActiveHospital($mappingId)
 
 public function register()
 {
-    $validationRules = [
-        "name" => "required|min_length[3]",
-        "gender" => "required",
-        "email" => "required|min_length[3]|valid_email",
-        "password" => "required|min_length[3]",
-        "phone_no" => "required"
-    ];
+    try {
+        $data = $this->request->getJSON(true); // ✅ Get JSON as array
 
+        $validationRules = [
+            "name" => "required|min_length[3]",
+            "gender" => "required",
+            "email" => "required|min_length[3]|valid_email",
+            "password" => "required|min_length[3]",
+            "phone_no" => "required"
+        ];
 
-    if(!$this->validate($validationRules)) {
+        // ✅ Validate JSON input
+        if (!$this->validateData($data, $validationRules)) {
+            return $this->respond([
+                "status" => false,
+                "error" => $this->validator->getErrors()
+            ]);
+        }
+
+        $this->db->transStart();
+
+        $userData = [
+            "name" => $data["name"],
+            "email" => $data["email"],
+            "gender" => $data["gender"],
+            "password" => password_hash($data["password"], PASSWORD_BCRYPT),
+            "phone_no" => $data["phone_no"],
+            "created_by" => null
+        ];
+
+        $this->userModel->insert($userData);
+
+        if ($this->db->error()['message']) {
+            return $this->respond([
+                "status" => false,
+                "step" => "user insert",
+                "error" => $this->db->error()
+            ]);
+        }
+
+        $userId = $this->db->insertID();
+
+        // Map as PATIENT
+        $mappingData = [
+            "user_id" => $userId,
+            "hospital_id" => null,
+            "role" => 2, // Patient role
+            "created_by" => $userId
+        ];
+
+        $this->userhospitalMapping->insert($mappingData);
+
+        if ($this->db->error()['message']) {
+            return $this->respond([
+                "status" => false,
+                "step" => "mapping insert",
+                "error" => $this->db->error()
+            ]);
+        }
+
+        $this->db->transComplete();
+
+        if ($this->db->transStatus() === false) {
+            return $this->respond([
+                "status"  => false,
+                "message" => "Registration failed",
+                "error"   => $this->db->error()
+            ], 500);
+        }
+
+        return $this->respond([
+            "status" => true,
+            "message" => "Registered Successfully",
+            "user_id" => $userId
+        ]);
+
+    } catch (\Exception $e) {
         return $this->respond([
             "status" => false,
-            "error" => $this->validator->getErrors()
+            "Error" => $e->getMessage()
         ]);
     }
-
-
-    $name = $this->request->getVar("name");
-    $email = $this->request->getVar("email");
-    $gender = $this->request->getVar("gender");
-    $password = password_hash($this->request->getVar("password"), PASSWORD_BCRYPT);
-    $phone_no = $this->request->getVar("phone_no");
-
-    
-    $this->db->transStart();
-                              
-    // Insert into users table
-    $userData = [
-        "name" => $name,
-        "email" => $email,
-        "gender" => $gender,
-        "password" => $password,
-        "phone_no" => $phone_no,
-        "created_by" => null
-    ];
-    $this->userModel->insert($userData);
-    if ($this->db->error()['message']) {
-    return $this->respond([
-        "status" => false,
-        "step" => "user insert",
-        "error" => $this->db->error()
-    ]);
-  }
-    $userId = $this->db->insertID();
-
-    // Insert into user_mapping as PATIENT role (role = 2)
-    $mappingData = [
-        "user_id" => $userId,
-        "hospital_id" => null, // Patient may not belong to any hospital
-        "role" => 2,
-        "created_by" => $userId
-    ];
-    $this->userhospitalMapping->insert($mappingData);
-    if ($this->db->error()['message']) {
-    return $this->respond([
-        "status" => false,
-        "step" => "mapping insert",
-        "error" => $this->db->error()
-    ]);
-  }
-
-    $this->db->transComplete();
-    if ($this->db->transStatus() === false) {
-    return $this->respond([
-        "status" => false,
-        "message" => "Registration failed",
-        "error" => $this->db->error()
-    ], 500);
-  }
-
-    return $this->respond([
-        "status" => true,
-        "message" => "Registered Successfully",
-        "user_id" => $userId
-    ]);
 }
 
 
-
 public function login()
- {
-    $validationRules = [
-        "email" => "required|valid_email",
-        "password" => "required|min_length[3]"
-    ];
+{
+    try {
 
-    if (!$this->validate($validationRules)) {
-        return $this->respond([
-            "status" => false,
-            "message" => "Validation failed",
-            "errors" => $this->validator->getErrors()
-        ]);
-    }
-
-    $email = $this->request->getVar("email");
-    $password = $this->request->getVar("password");
-
-    $user = $this->userModel
-        ->where("email", $email)
-        ->where("isDeleted", 0)
-        ->first();
-
-    if (!$user) {
-        return $this->respond([
-            "status" => false,
-            "message" => "Invalid email or password"
-        ]);
-    }
-
-    
-    if (!password_verify($password, $user["password"])) {
-        return $this->respond([
-            "status" => false,
-            "message" => "Invalid email or password"
-        ]);
-    }
-
-    
-    // $mappings = $this->userhospitalMapping
-    //             ->select("hospital_id, role")
-    //             ->where("user_id", $user["id"])
-    //             ->findAll();
-
-    // JWT Data
-    $payload = [
-        "iss" => "localhost",
-        "aud" => "localhost",
-        "iat" => time(),
-        "exp" => time() + 3600,
-        "user" => [
-            "id" => $user["id"],
-            "email" => $user["email"],
-            "name" => $user["name"],
-            "gender" => $user["gender"]
-        ],
+        $data = $this->request->getJSON(true); 
         
-    ];
+        $validationRules = [
+            "email" => "required|valid_email",
+            "password" => "required|min_length[3]"
+        ];
 
-    $token = JWT::encode($payload, getenv("JWT_KEY"), 'HS256');
-
-    return $this->respond([
-        "status" => true,
-        "message" => "Login successful",
-        "token" => $token,
-        "user" => [
-            "id" => $user["id"],
-            "name" => $user["name"],
-            "email" => $user["email"]
-        ],
         
-    ]);
+        if (!$this->validateData($data, $validationRules)) {
+            return $this->respond([
+                "status" => false,
+                "message" => "Validation failed",
+                "errors" => $this->validator->getErrors()
+            ]);
+        }
+
+        $email = $data['email'];
+        $password = $data['password'];
+
+        $user = $this->userModel
+            ->where("email", $email)
+            ->where("isDeleted", 0)
+            ->first();
+
+        if (!$user || !password_verify($password, $user["password"])) {
+            return $this->respond([
+                "status" => false,
+                "message" => "Invalid email or password"
+            ]);
+        }
+
+        $payload = [
+            "iss" => "localhost",
+            "aud" => "localhost",
+            "iat" => time(),
+            "exp" => time() + 3600,
+            "user" => [
+                "id" => $user["id"],
+                "email" => $user["email"],
+                "name" => $user["name"],
+                "gender" => $user["gender"],
+            ],
+        ];
+
+        $token = JWT::encode($payload, getenv("JWT_KEY"), 'HS256');
+
+        return $this->respond([
+            "status" => true,
+            "message" => "Login successful",
+            "token" => $token,
+            "user" => [
+                "id" => $user["id"],
+                "name" => $user["name"],
+                "email" => $user["email"]
+            ],
+        ]);
+
+    } catch (\Exception $e) {
+        return $this->respond([
+            "status" => false,
+            "Mssge" => $e->getMessage()
+        ]);
+    }
 }
 
 
 public function PatientandSuperAdminlogin()
- {
-   $validationRules = [
-        "email" => "required|valid_email",
-        "password" => "required|min_length[3]"
-    ];
+{
+    try {
 
-    if (!$this->validate($validationRules)) {
-        return $this->respond([
-            "status" => false,
-            "message" => "Validation failed",
-            "errors" => $this->validator->getErrors()
-        ]);
-    }
+        $data = $this->request->getJSON(true); 
 
-    $email = $this->request->getVar("email");
-    $password = $this->request->getVar("password");
+        $validationRules = [
+            "email" => "required|valid_email",
+            "password" => "required|min_length[3]"
+        ];
 
-    $user = $this->userModel
-        ->where("email", $email)
-        ->where("isDeleted", 0)
-        ->first();
-
-    if (!$user) {
-        return $this->respond([
-            "status" => false,
-            "message" => "Invalid email or password"
-        ]);
-    }
-
-    
-    if (!password_verify($password, $user["password"])) {
-        return $this->respond([
-            "status" => false,
-            "message" => "Invalid email or password"
-        ]);
-    }
-
-    
-    $mappings = $this->userhospitalMapping
-                ->select("hospital_id, role")
-                ->where("user_id", $user["id"])
-                ->findAll();
-
-               
-
-    // JWT Data
-    $payload = [
-        "iss" => "localhost",
-        "aud" => "localhost",
-        "iat" => time(),
-        "exp" => time() + 3600,
-        "user" => [
-            "id" => $user["id"],
-            "email" => $user["email"],
-            "name" => $user["name"],
-            "gender" => $user["gender"],
-            "role"  => $mappings[0]['role'],
-            "hospital_id" => $mappings[0]['hospital_id'] ?? null
-        ],
         
-    ];
+        if (!$this->validateData($data, $validationRules)) {
+            return $this->respond([
+                "status" => false,
+                "message" => "Validation failed",
+                "errors" => $this->validator->getErrors()
+            ]);
+        }
 
-    $token = JWT::encode($payload, getenv("JWT_KEY"), 'HS256');
+        $email = $data["email"];
+        $password = $data["password"];
 
-    return $this->respond([
-        "status" => true,
-        "message" => "Login successful",
-        "token" => $token,
-        "user" => [
-            "id" => $user["id"],
-            "name" => $user["name"],
-            "email" => $user["email"],
-            "role"  => $mappings[0]['role'],
-            "hospital_id" => $mappings[0]['hospital_id'] ?? null
-        ],
+        $user = $this->userModel
+            ->where("email", $email)
+            ->where("isDeleted", 0)
+            ->first();
+
+        if (!$user || !password_verify($password, $user["password"])) {
+            return $this->respond([
+                "status" => false,
+                "message" => "Invalid email or password"
+            ]);
+        }
+
+        $mappings = $this->userhospitalMapping
+            ->select("hospital_id, role")
+            ->where("user_id", $user["id"])
+            ->findAll();
+
         
-    ]);   
+        $role = $mappings[0]["role"] ?? null;
+        $hospitalId = $mappings[0]["hospital_id"] ?? null;
+
+        $payload = [
+            "iss" => "localhost",
+            "aud" => "localhost",
+            "iat" => time(),
+            "exp" => time() + 3600,
+            "user" => [
+                "id" => $user["id"],
+                "email" => $user["email"],
+                "name" => $user["name"],
+                "gender" => $user["gender"],
+                "role" => $role,
+                "hospital_id" => $hospitalId
+            ],
+        ];
+
+        $token = JWT::encode($payload, getenv("JWT_KEY"), 'HS256');
+
+        return $this->respond([
+            "status" => true,
+            "message" => "Login successful",
+            "token" => $token,
+            "user" => [
+                "id" => $user["id"],
+                "name" => $user["name"],
+                "email" => $user["email"],
+                "role" => $role,
+                "hospital_id" => $hospitalId
+            ],
+        ]);
+
+    } catch (\Exception $e) {
+        return $this->respond([
+            "status" => false,
+            "Error" => $e->getMessage()
+        ]);
+    }
 }
 
-
-
-   
 }
 
 

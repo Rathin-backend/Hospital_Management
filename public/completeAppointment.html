@@ -2,48 +2,77 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Complete Appointment</title>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="js/completeAppointment.js"></script>
+
 <style>
-body { font-family: Arial, sans-serif; background:#f8f9fa; margin:20px; }
+body { font-family: Arial; background:#f8f9fa; padding:20px; }
 h2 { margin-bottom:15px; }
-form { background:white; padding:20px; border-radius:10px; max-width:500px; margin:auto; box-shadow:0 5px 15px rgba(0,0,0,0.1);}
-form label { display:block; margin-top:10px; }
-form input, form textarea { width:100%; padding:8px; margin-top:5px; border-radius:4px; border:1px solid #ccc; }
-form button { margin-top:15px; padding:10px 15px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; }
-form button.cancel { background:#e53e3e; margin-left:10px; }
-.back-btn { margin-bottom:20px; background:#6c757d; color:white; padding:8px 14px; border:none; border-radius:4px; cursor:pointer; }
+.container { max-width:900px; margin:auto; background:white; padding:20px;border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+.section { border:1px solid #ddd; padding:10px; margin-top:10px; border-radius:6px; background:#fafafa; }
+.section h3 { margin-top:0; }
+label{font-weight:bold;}
+input,textarea,select{width:100%; padding:8px; margin:5px 0; border:1px solid #ccc;border-radius:5px;}
+button{padding:8px 12px;border:none;border-radius:6px;cursor:pointer;}
+.add-btn{background:#007bff;color:white;margin:6px 0;}
+.remove-btn{background:#dc3545;color:white;margin-left:5px;}
+.submit-btn{background:#28a745;color:white;font-size:16px;margin-top:15px;}
+.cancel-btn{background:#6c757d;color:white;margin-top:15px;}
+.row-flex{display:flex; gap:10px;}
+.row-flex > div{flex:1;}
+.back-btn{background:#6c757d;color:#fff;margin-bottom:15px;}
 </style>
 </head>
+
 <body>
 
-<button class="back-btn" onclick="window.location.href='appointments.html'">← Back to Appointments</button>
+<button class="back-btn" onclick="location.href='appointments.html'">← Back</button>
 
+<div class="container">
 <h2>Complete Appointment</h2>
 
-<form id="completeAppointmentForm">
-  <input type="hidden" id="appointmentId">
+<form id="appointmentCompleteForm">
 
-  <label>Reason</label>
-  <textarea id="reason" required></textarea>
+<input type="hidden" id="appointmentId">
 
-  <label>Weight (kg)</label>
-  <input type="number" step="0.1" id="weight" required>
+<div class="row-flex">
+<div>
+<label>Weight (kg)</label>
+<input type="number" id="weight" required step="0.1">
+</div>
+<div>
+<label>BP (Systolic)</label>
+<input type="number" id="bp_systolic" required>
+</div>
+<div>
+<label>BP (Diastolic)</label>
+<input type="number" id="bp_diastolic" required>
+</div>
+</div>
 
-  <label>BP Systolic</label>
-  <input type="number" id="bp_systolic" required>
+<label>Doctor Comment</label>
+<textarea id="doctor_comment" required></textarea>
 
-  <label>BP Diastolic</label>
-  <input type="number" id="bp_diastolic" required>
+<!-- ✅ Complaints Dynamic -->
+<div class="section" id="complaintsSection">
+<h3>Complaints <button type="button" class="add-btn" id="addComplaint">+ Add</button></h3>
+</div>
 
-  <label>Doctor Comment</label>
-  <textarea id="doctor_comment" required></textarea>
+<!-- ✅ Diagnosis Dynamic -->
+<div class="section" id="diagnosisSection">
+<h3>Diagnosis <button type="button" class="add-btn" id="addDiagnosis">+ Add</button></h3>
+</div>
 
-  <button type="submit">Submit</button>
-  <button type="button" class="cancel" onclick="window.location.href='appointments.html'">Cancel</button>
+<!-- ✅ Prescription Dynamic -->
+<div class="section" id="prescriptionSection">
+<h3>Prescriptions <button type="button" class="add-btn" id="addPrescription">+ Add</button></h3>
+</div>
+
+<button type="submit" class="submit-btn">Finish & Save</button>
+<button type="button" class="cancel-btn" onclick="location.href='appointments.html'">Cancel</button>
+
 </form>
-
+</div>
 </body>
 </html>

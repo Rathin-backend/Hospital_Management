@@ -1,422 +1,400 @@
-$(document).ready(function () {
-    const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role") || "2"; // 0=Admin, 1=Doctor, 2=Patient, 3=SuperAdmin
-    const userName = localStorage.getItem("userName") || "User";
-    const hospitalId = localStorage.getItem("hospital_id");
+$(function () {
+  const API = "http://localhost:8080";
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role");         // 0=Admin, 1=Doctor, 2=Patient, 3=SuperAdmin
+  const userName = localStorage.getItem("userName") || "User";
+  const hospitalId = localStorage.getItem("hospital_id");
 
-    const isViewingPatient = localStorage.getItem("isViewingPatient") === "true";
-    const viewingPatientId = localStorage.getItem("viewingPatientId");
-    const viewingPatientName = localStorage.getItem("viewingPatientName");
+  // ----- Auth guard -----
+  if (!token) {
+    window.location.href = "index.html";
+    return;
+  }
 
-    if (!token) { window.location.href = "index.html"; return; }
+  $("#userWelcome").text(`Welcome, ${userName}`);
 
-    // ---------- SET WELCOME INFO ----------
-    $("#userWelcome").text(`Welcome, ${userName}`);
+  // ----- Role-based menus + sections -----
+  (function setupMenus() {
+    // hide all first
+    $("#addDoctorMenu, #addPatientMenu, #doctorsMenu, #patientsMenu, #appointmentsMenu, #bookAppointmentMenu, #listPaymentMenu, #addHospitalMenu, #addAdminMenu, #AdminsMenu, #HospitalMenu, #showHistory").addClass("hidden");
+    $("#dashboardSection").show();
+    $("#patientDashboardSection").hide();
 
-    // ---------- PATIENT VIEWING MODE ----------
-    if (isViewingPatient && viewingPatientId && (role === "0" || role === "1")) {
-        setupPatientViewingMode();
-    } else {
-        setupNormalDashboard();
+    if (role === "0") { // Admin
+      $("#addDoctorMenu, #addPatientMenu, #doctorsMenu, #patientsMenu, #appointmentsMenu, #bookAppointmentMenu, #listPaymentMenu").removeClass("hidden");
+      loadStats();
+      loadHospitalName();
+    } else if (role === "1") { // Doctor
+      $("#patientsMenu, #appointmentsMenu, #showHistory").removeClass("hidden");
+      loadStats();
+      loadHospitalName();
+    } else if (role === "2") { // Patient
+      $("#bookAppointmentMenu, #appointmentsMenu, #showHistory, #listPaymentMenu").removeClass("hidden");
+      $("#dashboardSection").hide();
+      $("#patientDashboardSection").show();
+      loadPatientDetails();
+      loadPatientCharts();
+      loadHistory(); // in dashboard itself
+    } else if (role === "3") { // SuperAdmin
+      $("#addHospitalMenu, #doctorsMenu, #patientsMenu, #appointmentsMenu, #addAdminMenu, #AdminsMenu").removeClass("hidden");
+      loadStats();
     }
+  })();
 
-    // ---------- NORMAL DASHBOARD ----------
-    function setupNormalDashboard() {
-        $("#viewingPatientHeader").hide();
-        $("#patientInfoTitle").text("My Details");
-        $("#historyTitle").text("History");
-        $("#dashboardSection").show();
-        $("#patientDashboardSection").hide();
+  // ----- Stats cards -----
+  function loadStats() {
+    $.ajax({
+      url: `${API}/api/dashboard/stats`,
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+      success: (res) => {
+        const $c = $("#statsCards").empty();
+        if (typeof res.doctors !== "undefined") $c.append(card("Doctors", res.doctors, "fa-user-doctor"));
+        if (typeof res.patients !== "undefined") $c.append(card("Patients", res.patients, "fa-users"));
+        if (typeof res.appointments !== "undefined") $c.append(card("Appointments", res.appointments, "fa-calendar-check"));
+        if (typeof res.hospitals !== "undefined") $c.append(card("Hospitals", res.hospitals, "fa-hospital"));
+      },
+      error: () => console.warn("Failed to fetch stats")
+    });
+  }
+  function card(title, number, icon) {
+    return `<div class="stat-card">
+              <div class="icon"><i class="fas ${icon}"></i></div>
+              <h3>${title}</h3>
+              <div class="number">${number}</div>
+            </div>`;
+  }
 
-        // Hide all menus first
-        $("#addDoctorMenu, #addPatientMenu, #bookAppointmentMenu, #patientsMenu, #appointmentsMenu, #doctorsMenu , #showHistory, #HospitalMenu , #addHospitalMenu, #addAdminMenu , #AdminsMenu , #listPaymentMenu").addClass("hidden");
+  // ----- Hospital banner -----
+  function loadHospitalName() {
+    if (!hospitalId) return;
+    $.ajax({
+      url: `${API}/hospital/get-Hospital-Info`,
+      method: "GET",
+      data: { hospital_id: hospitalId },
+      headers: { Authorization: `Bearer ${token}` },
+      success: (res) => {
+        const name = res?.data?.name || "Hospital";
+        $("#hospitalNameAnimated").text(`Welcome to ${name}`);
+      },
+      error: () => $("#hospitalNameAnimated").text("Welcome")
+    });
+  }
 
-        if (role === "0") { // Admin
-            $("#addDoctorMenu, #addPatientMenu, #doctorsMenu, #patientsMenu, #appointmentsMenu, #bookAppointmentMenu,#listPaymentMenu").removeClass("hidden");
-            loadAdminStats();
-            loadHospitalInfo();
-        } else if (role === "1") { // Doctor
-            $("#patientsMenu, #appointmentsMenu, #showHistory").removeClass("hidden");
-            loadAdminStats();
-            loadHospitalInfo();
-        } else if (role === "2") { // Patient
-            $("#bookAppointmentMenu, #appointmentsMenu, #showHistory,#listPaymentMenu").removeClass("hidden");
-            $("#dashboardSection").hide();
-            $("#patientDashboardSection").show();
-            loadPatientDetails();
-            loadPatientStats();
-            loadPatientHistory();
-        } else if (role === "3") { // SuperAdmin
-            $("#addHospitalMenu, #doctorsMenu, #patientsMenu, #appointmentsMenu, #HospitalMenu, #addAdminMenu,#AdminsMenu").removeClass("hidden");
-            loadAdminStats();
+  // ----- Patient: Basic details -----
+  function loadPatientDetails() {
+    $.ajax({
+      url: `${API}/appointment/getDetailsforPatient`,
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+      success: (res) => {
+        const d = res?.data || {};
+        $("#pName").text(d.name || "-");
+        $("#pEmail").text(d.email || "-");
+        $("#pGender").text(d.gender || "-");
+        $("#pDOB").text(d.DOB || "-");
+        $("#pPhoto").attr("src", d.photo || "https://via.placeholder.com/100");
+      }
+    });
+  }
+
+  // ----- Patient: Charts (weight + BP) -----
+  function loadPatientCharts() {
+    $.ajax({
+      url: `${API}/appointment/getPatientStats`,
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+      success: (res) => {
+        if (!res?.status || !Array.isArray(res.data)) return;
+        const labels = res.data.map(x => x.date);
+        const weights = res.data.map(x => Number(x.weight || 0));
+        const sys = res.data.map(x => Number(x.bp_systolic || 0));
+        const dia = res.data.map(x => Number(x.bp_diastolic || 0));
+        drawLine("weightChart", "Weight (kg)", labels, weights, "#2a6bc9");
+        drawMultiLine("bpChart", labels,
+          { label: "Systolic", data: sys, color: "#e53e3e" },
+          { label: "Diastolic", data: dia, color: "#38a169" }
+        );
+      }
+    });
+  }
+  function drawLine(canvasId, label, labels, data, color) {
+    new Chart(document.getElementById(canvasId), {
+      type: "line",
+      data: { labels, datasets: [{ label, data, borderColor: color, backgroundColor: `${color}33`, fill: true, tension: 0.3 }] },
+      options: { responsive: true }
+    });
+  }
+  function drawMultiLine(canvasId, labels, s1, s2) {
+    new Chart(document.getElementById(canvasId), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          { label: s1.label, data: s1.data, borderColor: s1.color, backgroundColor: `${s1.color}33`, fill: true, tension: 0.3 },
+          { label: s2.label, data: s2.data, borderColor: s2.color, backgroundColor: `${s2.color}33`, fill: true, tension: 0.3 }
+        ]
+      },
+      options: { responsive: true }
+    });
+  }
+
+  // ----- Patient: Visit history (expand to show all 4 tables + Rx download) -----
+  function loadHistory() {
+    $.ajax({
+      url: `${API}/appointment/show-History`,
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+      success: (res) => {
+        const $tb = $("#historyTableBody").empty();
+
+        if (!res?.status || !Array.isArray(res.data) || !res.data.length) {
+          $tb.append(`<tr><td colspan="8" class="text-center text-muted">No history available</td></tr>`);
+          return;
         }
-    }
 
-    function generatePdf(item){
+        res.data.forEach((row, idx) => {
+          const detailsId = `details-${idx}`;
+
+          // Top row
+          const trMain = `
+            <tr class="main-row" data-target="${detailsId}">
+              <td>${row.appointment_id}</td>
+              <td>${row?.doctor?.name || "-"}</td>
+              <td>${row?.patient?.name || "-"}</td>
+              <td>${row?.hospital?.name || "-"}</td>
+              <td>${row.appointment_date || "-"}</td>
+              <td>${row.appointment_startTime || "-"}</td>
+              <td>${row.appointment_endTime || "-"}</td>
+              <td><span class="badge bg-success">completed</span></td>
+            </tr>`;
+
+          // Details row with all 4 tables
+          const v = row?.visit_details || {};
+          const complaintsHTML = (v.complaints || []).map(c =>
+            `<tr><td>${c.complaint || "-"}</td><td>${c.description || "-"}</td><td>${c.severity || "-"}</td><td>${c.days || "-"}</td></tr>`
+          ).join("") || `<tr><td colspan="4" class="text-muted text-center">No complaints</td></tr>`;
+
+          const diagnosesHTML = (v.diagnoses || []).map(d =>
+            `<tr><td>${d.diagnosis_name || "-"}</td><td>${d.notes || "-"}</td></tr>`
+          ).join("") || `<tr><td colspan="2" class="text-muted text-center">No diagnoses</td></tr>`;
+
+          const prescriptionsHTML = (v.prescriptions || []).map((p, i) => `
+            <tr>
+              <td>${p.medicine_name || "-"}</td>
+              <td>${p.dosage || "-"}</td>
+              <td>${p.frequency || "-"}</td>
+              <td>${p.duration || "-"}</td>
+              <td>${p.instructions || "-"}</td>
+              <td><button class="btn btn-sm btn-primary downloadRxBtn" 
+                    data-idx="${i}" data-parent="${detailsId}">
+                    <i class="fa-solid fa-file-pdf"></i> Download
+                  </button></td>
+            </tr>
+          `).join("") || `<tr><td colspan="6" class="text-muted text-center">No prescriptions</td></tr>`;
+
+          const trDetails = `
+            <tr id="${detailsId}" class="details-row" style="display:none;">
+              <td colspan="8">
+                <div class="details-box">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <h5>Visit Details</h5>
+                      <p><b>Visit ID:</b> ${v.visit_id || "-"}</p>
+                      <p><b>Date:</b> ${v.date || "-"}</p>
+                      <p><b>Weight:</b> ${v.weight || "-"} kg</p>
+                      <p><b>BP:</b> ${v.bp_systolic || "-"} / ${v.bp_diastolic || "-"}</p>
+                      <p><b>Doctor Comment:</b> ${v.doctor_comment || "-"}</p>
+                    </div>
+                    <div class="col-md-6">
+                      <h5>Hospital</h5>
+                      <p><b>Name:</b> ${row?.hospital?.name || "-"}</p>
+                      <p><b>Contact:</b> ${row?.hospital?.contact || "-"}</p>
+                      <p><b>Address:</b> ${row?.hospital?.address || "-"}</p>
+                    </div>
+                  </div>
+
+                  <hr/>
+                  <h5>Complaints</h5>
+                  <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                      <thead class="table-light"><tr><th>Complaint</th><th>Description</th><th>Severity</th><th>Days</th></tr></thead>
+                      <tbody>${complaintsHTML}</tbody>
+                    </table>
+                  </div>
+
+                  <h5>Diagnoses</h5>
+                  <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                      <thead class="table-light"><tr><th>Diagnosis</th><th>Notes</th></tr></thead>
+                      <tbody>${diagnosesHTML}</tbody>
+                    </table>
+                  </div>
+
+                  <h5>Prescriptions</h5>
+                  <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Medicine</th><th>Dosage</th><th>Frequency</th>
+                          <th>Duration</th><th>Instructions</th><th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>${prescriptionsHTML}</tbody>
+                    </table>
+                  </div>
+                </div>
+              </td>
+            </tr>`;
+
+          $tb.append(trMain + trDetails);
+
+          // attach original object to details row for PDF extraction later
+          $(`#${detailsId}`).data("record", row);
+        });
+
+        // expand/collapse
+        $(".main-row").off("click").on("click", function () {
+          const targetId = $(this).data("target");
+          $("#" + targetId).toggle();
+        });
+
+        // per-prescription PDF
+        $(".downloadRxBtn").off("click").on("click", function (e) {
+          e.stopPropagation();
+          const detailsId = $(this).data("parent");
+          const rxIndex = Number($(this).data("idx"));
+          const record = $("#" + detailsId).data("record");
+          downloadPrescriptionPDF(record, rxIndex);
+        });
+      },
+      error: () => {
+        $("#historyTableBody").html(`<tr><td colspan="8" class="text-center text-danger">Failed to fetch history</td></tr>`);
+      }
+    });
+  }
+
+  function downloadPrescriptionPDF(record, rxIndex) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    let y = 20;
 
-    doc.setFont("helvetica", "bold");
+    const v = record?.visit_details || {};
+    const hospital = record?.hospital || {};
+    const doctor = record?.doctor || {};
+    const patient = record?.patient || {};
+    const rx = (v.prescriptions || [])[rxIndex];
+
+    // Title
     doc.setFontSize(18);
-    doc.text("Appointment Details", 105, y, { align: "center" });
-    y += 15;
+    doc.setFont("helvetica", "bold");
+    doc.text("Prescription", 105, 14, { align: "center" });
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-
-    const lines = [
-        `Appointment ID: ${item.appointment_id}`,
-        `Doctor: ${item.doctorName}`,
-        `Patient: ${item.patientName}`,
-        `Hospital: ${item.HospitalName}`,
-        `Contact: ${item.Hospital_contactNo || "-"}`,
-        `Address: ${item.Hospital_address || "-"}`,
-        `Date: ${item.appointment_date}`,
-        `Start Time: ${item.appointment_startTime}`,
-        `End Time: ${item.appointment_endTime}`,
-        `Status: ${item.status}`,
-        " ",
-        "Visit Record",
-        `Consultation Date: ${item.visit_records?.date || "-"}`,
-        `Reason: ${item.visit_records?.reason || "-"}`,
-        `Weight: ${item.visit_records?.weight || "-"} kg`,
-        `Blood Pressure: ${item.visit_records?.bp_systolic || "-"}/${item.visit_records?.bp_diastolic || "-"} mmHg`,
-        `Doctor Comment: ${item.visit_records?.doctor_comment || "-"}`
+    // Appointment info
+    const info = [
+      ["Appointment ID", record.appointment_id || "-"],
+      ["Hospital", hospital.name || "-"],
+      ["Doctor", doctor.name || "-"],
+      ["Patient", patient.name || "-"],
+      ["Date", record.appointment_date || "-"],
+      ["Time", `${record.appointment_startTime || "-"} - ${record.appointment_endTime || "-"}`]
     ];
+    doc.autoTable({ startY: 20, head: [["Field", "Value"]], body: info, theme: "grid" });
 
-    lines.forEach(line => { doc.text(line, 20, y); y += 10; });
+    // Visit summary
+    const visit = [
+      ["Visit ID", v.visit_id || "-"],
+      ["Visit Date", v.date || "-"],
+      ["Weight", (v.weight ? `${v.weight} kg` : "-")],
+      ["Blood Pressure", `${v.bp_systolic || "-"} / ${v.bp_diastolic || "-"}`],
+      ["Doctor Comment", v.doctor_comment || "-"]
+    ];
+    doc.autoTable({ startY: doc.lastAutoTable.finalY + 8, head: [["Visit", "Value"]], body: visit, theme: "grid" });
 
-    y += 10;
+    // Prescription (single)
+    if (rx) {
+      const rxTable = [
+        ["Medicine", rx.medicine_name || "-"],
+        ["Dosage", rx.dosage || "-"],
+        ["Frequency", rx.frequency || "-"],
+        ["Duration", rx.duration || "-"],
+        ["Instructions", rx.instructions || "-"]
+      ];
+      doc.autoTable({ startY: doc.lastAutoTable.finalY + 8, head: [["Prescription Field", "Value"]], body: rxTable, theme: "grid" });
+    }
+
+    // Footer
     doc.setFontSize(10);
-    doc.text("Generated by ABC Hospital Portal", 105, y, { align: "center" });
+    doc.text("Generated by Smart Hospital Portal", 105, doc.internal.pageSize.height - 10, { align: "center" });
 
-    doc.save(`Appointment_${item.appointment_id}.pdf`);
-}
+    doc.save(`Prescription_${record.appointment_id}_${rxIndex + 1}.pdf`);
+  }
 
+  // ----- Profile: Prefill + Save (uses your routes: GET /auth/user/:id, POST /auth/update-profile) -----
+  $("#editProfileBtn").on("click", function () {
+    $("#editProfileForm").slideDown();
+    // Route demands :id but your controller uses token -> safe to pass 0
+    $.ajax({
+      url: `${API}/auth/user/0`,
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+      success: function (res) {
+        const u = res?.data || {};
+        $("#editName").val(u.name || "");
+        $("#editEmail").val(u.email || "");
+        $("#editGender").val(u.gender || "male");
+        $("#editPassword").val("");
+        // role-specific extra field (doctor expertise only)
+        if (role === "1") {
+          $("#roleSpecificField").html(`<label>Expertise</label><input type="text" id="editExpertise" class="form-control" value="${u.expertise || ""}">`);
+        } else {
+          $("#roleSpecificField").empty();
+        }
+      },
+      error: function () {
+        alert("Failed to load profile");
+      }
+    });
+  });
 
-    // ---------- PATIENT VIEWING MODE ----------
-    function setupPatientViewingMode() {
-        $("#viewingPatientHeader").show();
-        $("#viewingPatientTitle").text(`Viewing Patient: ${viewingPatientName || "Unknown"}`);
-        $("#patientInfoTitle").text("Patient Details");
-        $("#historyTitle").text("Patient History");
-        $("#dashboardSection").hide();
-        $("#patientDashboardSection").show();
+  $("#cancelEditProfile").on("click", function () {
+    $("#editProfileForm").slideUp();
+  });
 
-        loadPatientDetails(viewingPatientId);
-        loadPatientStats(viewingPatientId);
-        loadPatientHistory(viewingPatientId);
-
-        $("#backToDashboardBtn").on("click", function () {
-            localStorage.removeItem("isViewingPatient");
-            localStorage.removeItem("viewingPatientId");
-            localStorage.removeItem("viewingPatientName");
-            window.location.reload();
-        });
-    }
-
-
-    // ---------- ADMIN/DOCTOR STATS ----------
-    function loadAdminStats() {
-        $.ajax({
-            url: "http://localhost:8080/api/dashboard/stats",
-            method: "GET",
-            headers: { Authorization: `Bearer ${token}` },
-            success: function (res) {
-                const cardsContainer = $("#statsCards");
-                cardsContainer.empty();
-
-                if (res.doctors !== undefined) cardsContainer.append(statCard("Doctors", res.doctors, "fa-user-doctor"));
-                if (res.patients !== undefined) cardsContainer.append(statCard("Patients", res.patients, "fa-users"));
-                if (res.appointments !== undefined) cardsContainer.append(statCard("Appointments", res.appointments, "fa-calendar-check"));
-                if (res.hospitals !== undefined) cardsContainer.append(statCard("Hospitals", res.hospitals, "fa-hospital"));
-            },
-            error: function () { alert("Failed to fetch stats"); }
-        });
-    }
-
-    function statCard(title, number, icon) {
-        return `<div class="stat-card">
-                    <div class="icon"><i class="fas ${icon}"></i></div>
-                    <h3>${title}</h3>
-                    <div class="number">${number}</div>
-                </div>`;
-    }
-
- function loadHospitalInfo() {
-    const hospitalId = localStorage.getItem("hospital_id");
-    if (!hospitalId) return;
+  $("#editProfileForm").on("submit", function (e) {
+    e.preventDefault();
+    const payload = {
+      name: $("#editName").val(),
+      email: $("#editEmail").val(),
+      gender: $("#editGender").val()
+    };
+    const pw = $("#editPassword").val();
+    if (pw) payload.password = pw;
+    if (role === "1") payload.expertise = $("#editExpertise").val();
 
     $.ajax({
-        url: "http://localhost:8080/hospital/get-Hospital-Info",
-        method: "GET",
-        data: { hospital_id: hospitalId },
-        headers: { Authorization: `Bearer ${token}` },
-        success: function(res) {
-            const name = res.status && res.data ? res.data.name : "Unknown Hospital";
-
-            // Get elements
-            const $banner = $("#hospitalNameBanner");
-            const $name = $("#hospitalNameAnimated");
-
-            // Set text
-            $name.text(`Welcome to ${name}`);
-
-            // Show banner
-            $banner.show();
-
-            // Reset animation
-            $name.css({ "transform": "translateX(-100%)", "opacity": 0, "animation": "none" });
-
-            // Trigger reflow to restart animation
-            void $name[0].offsetWidth;
-
-            // Apply CSS animation
-            $name.css("animation", "slideIn 1.5s ease-out forwards");
-        },
-        error: function() {
-            $("#hospitalNameAnimated").text("Unknown Hospital");
+      url: `${API}/auth/update-profile`,
+      method: "POST", // per your routes file
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      data: JSON.stringify(payload),
+      success: function (res) {
+        if (res?.status) {
+          alert(res?.message || "Profile updated");
+          $("#editProfileForm").slideUp();
+          if (res?.data?.name) {
+            localStorage.setItem("userName", res.data.name);
+            $("#userWelcome").text(`Welcome, ${res.data.name}`);
+          }
+        } else {
+          alert(res?.message || "Failed to update profile");
         }
+      },
+      error: function () { alert("Error updating profile"); }
     });
-}
+  });
 
-
-
-    // ---------- PATIENT DETAILS ----------
-    function loadPatientDetails(patientId = null) {
-        const url = patientId ? `http://localhost:8080/appointment/getDetailsforPatient?patientId=${patientId}` : "http://localhost:8080/appointment/getDetailsforPatient";
-        $.ajax({
-            url: url,
-            method: "GET",
-            headers: { Authorization: `Bearer ${token}` },
-            success: function(res){
-                if(res.status){
-                    const d = res.data;
-                    $("#pName").text(d.name || "-");
-                    $("#pEmail").text(d.email || "-");
-                    $("#pGender").text(d.gender || "-");
-                    $("#pDOB").text(d.DOB || "-");
-                    $("#pPhoto").attr("src", d.photo || "https://via.placeholder.com/100");
-                }
-            }
-        });
-    }
-
-    // ---------- PATIENT STATS (CHARTS) ----------
-    function loadPatientStats(patientId = null) {
-        const url = patientId ? `http://localhost:8080/appointment/getPatientStats?patientId=${patientId}` : "http://localhost:8080/appointment/getPatientStats";
-        $.ajax({
-            url: url,
-            method: "GET",
-            headers: { Authorization: `Bearer ${token}` },
-            success: function(res){
-                if(res.status && res.data.length){
-                    const labels = res.data.map(d => d.date);
-                    const weightData = res.data.map(d => d.weight);
-                    const sysData = res.data.map(d => d.bp_systolic);
-                    const diaData = res.data.map(d => d.bp_diastolic);
-
-                    renderLineChart("weightChart", "Weight (kg)", labels, weightData, "#2a6bc9");
-                    renderLineChart("bpChart", "Blood Pressure", labels, sysData, "#e53e3e", diaData, "#38a169");
-                }
-            }
-        });
-    }
-
-    function renderLineChart(id, label, labels, data1, color1, data2 = null, color2 = null){
-        const datasets = [{ label: label, data: data1, borderColor: color1, backgroundColor: `${color1}33`, fill:true, tension:0.3 }];
-        if(data2) datasets.push({ label: "Diastolic", data: data2, borderColor: color2, backgroundColor: `${color2}33`, fill:true, tension:0.3 });
-        new Chart(document.getElementById(id), { type:"line", data:{ labels, datasets }, options:{ responsive:true } });
-    }
-
-    // ---------- PATIENT HISTORY ----------
-function loadPatientHistory(patientId = null) {
-    console.log("loadPatientHistory for:", patientId);
-    const url = patientId 
-        ? `http://localhost:8080/appointment/show-History?patientId=${patientId}`
-        : "http://localhost:8080/appointment/show-History";
-
-    $.ajax({
-        url: url,
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-        success: function (res) {
-            const tbody = $("#historyTableBody");
-            tbody.empty();
-
-            if (res.status && res.data && res.data.length) {
-                res.data.forEach((item, index) => {
-                    const detailsId = `details-${index}`;
-                    const row = `
-                        <tr class="main-row" data-target="${detailsId}">
-                            <td>${item.appointment_id}</td>
-                            <td>${item.doctorName}</td>
-                            <td>${item.patientName}</td>
-                            <td>${item.HospitalName || "Unknown"}</td>
-                            <td>${item.appointment_date}</td>
-                            <td>${item.appointment_startTime}</td>
-                            <td>${item.appointment_endTime}</td>
-                            <td><span class="badge bg-success">${item.status}</span></td>
-                        </tr>
-                        <tr class="details-row" id="${detailsId}" style="display:none;">
-                            <td colspan="8">
-                                <div class="details-box">
-                                    <p><span class="fw-bold">Hospital:</span> ${item.HospitalName || "-"}</p>
-                                    <p><span class="fw-bold">Contact:</span> ${item.Hospital_contactNo || "-"}</p>
-                                    <p><span class="fw-bold">Address:</span> ${item.Hospital_address || "-"}</p>
-                                    <p><span class="fw-bold">Consultation Date:</span> ${item.visit_records?.date || "-"}</p>
-                                    <p><span class="fw-bold">Reason:</span> ${item.visit_records?.reason || "-"}</p>
-                                    <p><span class="fw-bold">Weight:</span> ${item.visit_records?.weight || "-"} kg</p>
-                                    <p><span class="fw-bold">Blood Pressure:</span> ${item.visit_records?.bp_systolic || "-"} / ${item.visit_records?.bp_diastolic || "-"} mmHg</p>
-                                    <p><span class="fw-bold">Doctor Comment:</span> ${item.visit_records?.doctor_comment || "-"}</p>
-                                    <button class="btn btn-sm btn-primary downloadPdfBtn mt-2" 
-                                        data-appointment='${JSON.stringify(item).replace(/'/g, "&apos;").replace(/"/g, "&quot;")}'>
-                                        <i class="fa-solid fa-file-pdf"></i> Download PDF
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                    tbody.append(row);
-                });
-
-                // Toggle details
-                $(".main-row").off("click").on("click", function () {
-                    const targetId = $(this).data("target");
-                    $("#" + targetId).toggle();
-                });
-
-                // PDF Download Handler
-                $(".downloadPdfBtn").off("click").on("click", function () {
-                    const item = JSON.parse(
-                        $(this)
-                            .attr("data-appointment")
-                            .replace(/&quot;/g, '"')
-                            .replace(/&apos;/g, "'")
-                    );
-
-                    const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF();
-
-                    // ---------- Appointment Info Table ----------
-                    const appointmentData = [
-                        ["Appointment ID", item.appointment_id || "-"],
-                        ["Doctor", item.doctorName || "-"],
-                        ["Patient", item.patientName || "-"],
-                        ["Hospital", item.HospitalName || "-"],
-                        ["Contact", item.Hospital_contactNo || "-"],
-                        ["Address", item.Hospital_address || "-"],
-                        ["Date", item.appointment_date || "-"],
-                        ["Start Time", item.appointment_startTime || "-"],
-                        ["End Time", item.appointment_endTime || "-"],
-                        ["Status", item.status || "-"]
-                    ];
-
-                    doc.setFontSize(18);
-                    doc.setFont("helvetica", "bold");
-                    doc.text("Appointment Details", 105, 15, { align: "center" });
-
-                    doc.autoTable({
-                        startY: 25,
-                        head: [["Field", "Value"]],
-                        body: appointmentData,
-                        theme: "grid",
-                        headStyles: { fillColor: [42, 107, 201], textColor: 255, fontStyle: "bold" },
-                        styles: { cellPadding: 3, fontSize: 12 },
-                    });
-
-                    // ---------- Visit Record Table ----------
-                    const visitData = [
-                        ["Consultation Date", item.visit_records?.date || "-"],
-                        ["Reason", item.visit_records?.reason || "-"],
-                        ["Weight", item.visit_records?.weight ? item.visit_records.weight + " kg" : "-"],
-                        ["Blood Pressure", item.visit_records ? `${item.visit_records.bp_systolic || "-"} / ${item.visit_records.bp_diastolic || "-"}` : "-"],
-                        ["Doctor Comment", item.visit_records?.doctor_comment || "-"]
-                    ];
-
-                    doc.autoTable({
-                        startY: doc.lastAutoTable.finalY + 10,
-                        head: [["Field", "Value"]],
-                        body: visitData,
-                        theme: "grid",
-                        headStyles: { fillColor: [229, 62, 62], textColor: 255, fontStyle: "bold" },
-                        styles: { cellPadding: 3, fontSize: 12 },
-                    });
-
-                    // Footer
-                    doc.setFontSize(10);
-                    doc.text(
-                        "Generated by ABC Hospital Portal",
-                        105,
-                        doc.internal.pageSize.height - 10,
-                        { align: "center" }
-                    );
-
-                    // Save PDF
-                    doc.save(`Appointment_${item.appointment_id}.pdf`);
-                });
-
-            } else {
-                tbody.append(`<tr><td colspan="8" class="text-center text-muted">No history available</td></tr>`);
-            }
-        },
-        error: function () {
-            tbody.append(`<tr><td colspan="8" class="text-center text-danger">Failed to fetch history</td></tr>`);
-        }
-    });
-}
-
-
-    // ---------- EDIT PROFILE ----------
-    $("#editProfileBtn").on("click", function () {
-        $.ajax({
-            url: "http://localhost:8080/api/update-profile",
-            method: "GET",
-            headers: { Authorization: `Bearer ${token}` },
-            success: function (res) {
-                const user = res.data || {};
-                $("#editName").val(user.name || "");
-                $("#editEmail").val(user.email || "");
-                $("#editGender").val(user.gender || "");
-                if(role==="1") $("#roleSpecificField").html(`<label>Expertise</label><input type="text" id="editExpertise" value="${user.expertise||''}">`);
-                if(role==="2") $("#roleSpecificField").html(`<label>Problem</label><input type="text" id="editProblem" value="${user.problem||''}">`);
-                $("#editPassword").val("");
-                $("#editProfileForm").slideDown();
-            },
-            error: function () { alert("Failed to load profile"); }
-        });
-    });
-
-    $("#cancelEditProfile").on("click", function(){ $("#editProfileForm").slideUp(); });
-
-    $("#editProfileForm").on("submit", function(e){
-        e.preventDefault();
-        const data = {
-            name: $("#editName").val(),
-            email: $("#editEmail").val(),
-            gender: $("#editGender").val(),
-            password: $("#editPassword").val(),
-            expertise: role==="1"? $("#editExpertise").val():undefined,
-            problem: role==="2"? $("#editProblem").val():undefined
-        };
-        $.ajax({
-            url: "http://localhost:8080/api/update-profile",
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            data: data,
-            success: function(res){
-                if(res.status){
-                    alert(res.mssge || "Profile updated");
-                    $("#editProfileForm").slideUp();
-                    localStorage.setItem("userName", res.data.name);
-                    $("#userWelcome").text(`Welcome, ${res.data.name}`);
-                } else alert(res.mssge || "Failed to update profile");
-            },
-            error: function(){ alert("Error updating profile"); }
-        });
-    });
-
-    // ---------- LOGOUT ----------
-    $("#logoutBtn").click(function(){ localStorage.clear(); window.location.href="index.html"; });
+  // ----- Logout -----
+  $("#logoutBtn").on("click", function () {
+    localStorage.clear();
+    window.location.href = "index.html";
+  });
 });

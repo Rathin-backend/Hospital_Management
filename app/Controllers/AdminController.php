@@ -327,7 +327,7 @@ public function addDoctor()//Done
             $existingMapping = $this->userhospitalMapping
                 ->where("user_id", $userId)
                 ->where("hospital_id", $hospital_id)
-                ->where("role", 1)
+                ->where("role", "1")
                 ->where("isDeleted", 0)
                 ->first();
 
@@ -376,7 +376,7 @@ public function addDoctor()//Done
         $mappingData = [
             "user_id" => $userId,
             "hospital_id" => $hospital_id,
-            "role" => 1,
+            "role" => "1",
             "created_by" => $loggedUserId
         ];
 
@@ -558,7 +558,6 @@ public function ListAdmins()
 
 
 
-
 public function ListDoctors()
 {
     try {
@@ -571,16 +570,16 @@ public function ListDoctors()
 
         $builder = $this->userModel->select(
             "users.id, users.name, users.email, users.phone_no, users.gender,
-             h.name as hospital_name, h.id as hospital_id"
+             users.expertise , h.name as hospital_name, h.id as hospital_id"
         )
         ->join("user_hospital_mapping as uhm", "uhm.user_id = users.id")
         ->join("hospitals as h", "h.id = uhm.hospital_id")
-        ->where("uhm.role", 1) // Doctor
+        ->where("uhm.role", "1") // Doctor
         ->where("users.isDeleted", 0)
         ->where("uhm.deleted_at", null);
 
         
-        if (in_array((int)$loggedUserRole, [0, 1])) {
+        if (in_array((int)$loggedUserRole, [0 , 1])) {
             // Admin / Doctor → must have hospital_id in token
             if (!$loggedHospitalId) {
                 return $this->respond([
@@ -622,55 +621,6 @@ public function ListDoctors()
 }
 
 
-
-
-public function ListPatientsHospitalWise()
-{
-    try{
-    //Shld do some checks
-    $hospital_id = $this->request->hospital_id;
-
-
-    if(!$hospital_id)
-    {
-        $hospital_id = $this->request->getVar("hospital_id");
-    }
-    
-
-    $data = $this->appointmentModel->select("appointments.patient_id,
-                                                users.*")
-                                    ->where("appointments.hospital_id" , $hospital_id)
-                                    ->join("users as users" , "users.id=appointments.patient_id")
-                                    ->groupBy("users.id")
-                                    ->findAll(); // role : 0 => oly list Doctors
-
-
-    if($data)
-    {
-        return $this->respond([
-        "status" => true,
-        "mssge" => "Fetched all the Patients data successfully",
-        "data" => $data,
-        ]);
-    }else{
-            return $this->respond([
-        "status" => false,
-        "mssge" => "Could not fetch the data"
-        ]);
-    }
-    }
-    catch(\Exception $e)
-    {
-        return $this->respond(([
-            "status" => false,
-            "Error" => $e->getMessage()
-        ]));
-    }
-    
-    
-}
-
-
 public function ListPatients()
 {
     try {
@@ -679,7 +629,6 @@ public function ListPatients()
         $loggedHospitalId = $this->request->hospital_id ?? null;
         $filterHospitalId = $this->request->getVar("hospital_id");
 
-        
         if (!$loggedInUserId || $loggedUserRole === null) {
             return $this->respond([
                 "status" => false,
@@ -691,23 +640,24 @@ public function ListPatients()
             "users.id, users.name, users.email, users.phone_no,
              users.gender, a.hospital_id, h.name as hospital_name"
         )
-        ->join("appointments as a", "a.patient_id = users.id")
-        ->join("hospitals as h", "h.id = a.hospital_id")
-        ->where("users.role", 2) // Patients only
+        ->join("appointments as a", "a.patient_id = users.id", "left")
+        ->join("hospitals as h", "h.id = a.hospital_id", "left")
+        ->join("user_hospital_mapping as uhm", "uhm.user_id = users.id")
+        ->where("uhm.role", "2")
         ->where("users.isDeleted", 0)
-        ->where("a.deleted_at", null)
-        ->groupBy("users.id"); // So patient appears once
+        ->where("(a.deleted_at IS NULL OR a.deleted_at IS NOT NULL)")
+        ->groupBy("users.id");
 
-        
-        switch ((int)$loggedUserRole) {
-            case 3: // SuperAdmin → optional filter
+        switch ($loggedUserRole)
+        {
+            case "3": // SuperAdmin
                 if (!empty($filterHospitalId)) {
                     $builder->where("a.hospital_id", $filterHospitalId);
                 }
                 break;
 
-            case 1: // Doctor → Only patients from same hospital
-            case 0: // Admin → Only patients from same hospital
+            case "0": // Admin
+            case "1": // Doctor
                 if (!$loggedHospitalId) {
                     return $this->respond([
                         "status" => false,
@@ -717,7 +667,7 @@ public function ListPatients()
                 $builder->where("a.hospital_id", $loggedHospitalId);
                 break;
 
-            case 2: // Patient → Only self
+            case "2": // Patient
                 $builder->where("users.id", $loggedInUserId);
                 break;
 
@@ -746,111 +696,6 @@ public function ListPatients()
 }
 
 
-// public function ListPatientsforSuperAdmin()
-// {
-//     //Shld do some checks
-//     try{
-        
-//     $hospital_id = $this->request->getVar("hospital_id");
-
-//     $builder = $this->userModel
-//                     ->select("users.*")
-//                     ->where("users.role" , "2")
-//                     ->where("users.isDeleted" , "0")
-//                     ->groupBy("users.id"); // role : 0 => oly list Doctors
-
-//     if(!empty($hospital_id))
-//     {
-//         $builder = $builder
-//                     ->join("appointments" , "appointments.patient_id = users.id" , "inner")
-//                     ->where("appointments.hospital_id" , $hospital_id)
-//                     ->groupBy("users.id");
-//     }
-
-//     $data = $builder->findAll();
-
-
-//     if($data)
-//     {
-//         return $this->respond([
-//         "status" => true,
-//         "mssge" => "Fetched all the Patients data successfully",
-//         "data" => $data,
-//         ]);
-//     }else{
-//             return $this->respond([
-//         "status" => false,
-//         "mssge" => "Could not fetch the data"
-//         ]);
-//     }
-//     }catch(\Exception $e)
-//     {
-//         return $this->respond([
-//             "status" => false,
-//             "Error" => $e->getMessage()
-//         ]);
-//     }
-
-    
-// }
-
-
-// public function listAllPatients()
-// {
-//     try {
-//         $userRole = $this->request->role;
-
-//         if($userRole == 0 || $userRole == 1)
-//         {
-//            $hospitalID = $this->request->hospital_id; // Admin & Doctor will always have this from token
-//         }
-        
-//         $filterHospital = $this->request->getVar('hospital_id'); // For SuperAdmin filter
-
-//         $builder = $this->userModel
-//             ->select("users.*, appointments.hospital_id as appointment_hospital_id")
-//             ->join("appointments", "appointments.patient_id = users.id", "left") 
-//             ->where("users.role", "2")
-//             ->where("users.isDeleted", "0")
-//             ->groupBy("users.id");
-
-            
-
-//                 if ($userRole == 0 || $userRole == 1) {
-//                     // Admin or Doctor — only their hospital
-//                     $builder->where("appointments.hospital_id", $hospitalID);
-//                 }
-//                 elseif ($userRole == 3) {
-//                     // SuperAdmin — can filter by hospital
-//                     if (!empty($filterHospital)) {
-//                         $builder->where("appointments.hospital_id", $filterHospital);
-//                     }
-//                 }
-//                 elseif ($userRole == 2) {
-//                     // Patient — They should only see themselves
-//                     return $this->respond([
-//                         "status" => false,
-//                         "Mssge" => "Patients cannot access other patient data!"
-//                     ]);
-//                 }
-                
-
-//         $data = $builder->findAll();
-
-//         return $this->respond([
-//             "status" => true,
-//             "Mssge" => "Successfully fetched the patients list",
-//             "data" => $data
-//         ]);
-//     } catch (\Exception $e) {
-//         return $this->respond([
-//             "status" => false,
-//             "Error" => $e->getMessage()
-//         ]);
-//     }
-// }
-
-
 public function editDoctor()
     {
         try {
@@ -863,7 +708,7 @@ public function editDoctor()
             }
 
             $doctor = $this->userModel->find($doctorId);
-            if (!$doctor || $doctor['role'] != 1 || $doctor['isDeleted'] == 1) {
+            if (!$doctor || $doctor['role'] != "1" || $doctor['isDeleted'] == 1) {
                 return $this->failNotFound("Doctor not found");
             }
 
@@ -925,7 +770,7 @@ public function editPatient()
 
             $patient = $this->userModel->find($patientId);
 
-            if (!$patient || $patient['role'] != 2 || $patient['isDeleted'] == 1) {
+            if (!$patient || $patient['role'] != "2" || $patient['isDeleted'] == 1) {
                 return $this->failNotFound("Patient not found");
             }
 
@@ -972,6 +817,7 @@ public function deletePatient()
             return $this->failServerError($e->getMessage());
         }
     }
+
 
 
 public function getUser()
@@ -1042,8 +888,8 @@ public function updateProfile()
             );
         }
 
-        // ✅ Only doctors can update expertise
-        if ($loggedUserRole == 1 && $this->request->getVar("expertise")) {
+        
+        if ($loggedUserRole == "1" && $this->request->getVar("expertise")) {
             $updateData["expertise"] = $this->request->getVar("expertise") ?? $this->request->userData->user->expertise;
         }
 
@@ -1081,7 +927,7 @@ public function stats()
             // Count Doctors → role 1, active
             $doctorsCount = $this->userModel
                 ->join("user_hospital_mapping uhm", "uhm.user_id = users.id")
-                ->where("uhm.role", 1)
+                ->where("uhm.role", "1")
                 ->where("users.deleted_at", null)
                 ->where("uhm.deleted_at", null)
                 ->countAllResults();
@@ -1126,7 +972,7 @@ public function stats()
 
         $doctorsCount = $this->userModel
             ->join("user_hospital_mapping uhm", "uhm.user_id = users.id")
-            ->where("uhm.role", 1)
+            ->where("uhm.role", "1")
             ->where("uhm.hospital_id", $loggedHospitalId)
             ->where("uhm.deleted_at", null)
             ->where("users.deleted_at", null)
