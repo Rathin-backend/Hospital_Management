@@ -28,12 +28,12 @@ $routes->group('auth', ['filter' => 'Auth'], function($routes) {
     $routes->get('hospitals', [LoginController::class , 'listHospitals']);
     $routes->post('set-active-hospital/(:num)', [LoginController::class , 'setActiveHospital/$1']);
     $routes->get('user/(:num)', 'AdminController::getUser/$1');
-$routes->put('update-profile', 'AdminController::updateProfile');
+$routes->post('update-profile', 'AdminController::updateProfile');
 });
 
 
 
-$routes->group("hospital" ,["namespace" => "namespace App\Controllers" , "filter" => "Auth"] ,  function($routes)
+$routes->group("hospital" ,["namespace" => "App\Controllers" , "filter" => "Auth"] ,  function($routes)
 {
     $routes->group('' , ['filter' => 'roleSuperAdmin'], function($routes)
     {
@@ -47,7 +47,7 @@ $routes->group("hospital" ,["namespace" => "namespace App\Controllers" , "filter
 
 
 
-
+//AdminController
 $routes->group("api" , ["namespace" => "App\Controllers", "filter" => "Auth" ] , function($routes)
 {
 
@@ -109,7 +109,6 @@ $routes->group("api" , ["namespace" => "App\Controllers", "filter" => "Auth" ] ,
 
 
 
-
 //Appointment
 $routes->group("appointment" , ["namespace" => "App\Controllers" , "filter" => "Auth"] , function($routes)
 {
@@ -134,6 +133,7 @@ $routes->group("appointment" , ["namespace" => "App\Controllers" , "filter" => "
     $routes->group('' , ['filter' => 'roleDoctor'] , function($routes)
     {
         $routes->post('confirm-Appointment' , [AppointmentController::class , 'confirmAppointment']);
+        $routes->get('diagnosis-List' , [AppointmentController::class , 'diagnosisList']);
     });
 
 
@@ -156,6 +156,8 @@ $routes->group("appointment" , ["namespace" => "App\Controllers" , "filter" => "
     $routes->get('show-History' , [AppointmentController::class , 'showHistory']);
     $routes->get('getDetailsforPatient' , [AdminController::class , 'getDetailsforPatient']);
     $routes->get('getPatientStats' , [AppointmentController::class , 'getPatientStats']);
+
+    $routes->get('Get-Appointment-Logs' , [AppointmentController::class , 'Get_Appointment_Log']);
     
     $routes->post('check-availability', [AppointmentController::class, 'checkAvailability']);
     

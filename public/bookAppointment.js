@@ -7,8 +7,8 @@ $(document).ready(function () {
   let selectedSlot = null;
 
   if (!token) {
-    alert("Login required");  
-    window.location.href = "dashboard.html";
+    alert("Login required");
+    window.location.href = "index.html";
     return;
   }
 
@@ -28,26 +28,28 @@ $(document).ready(function () {
         (res.data || []).forEach(h => {
           $("#hospitalSelect").append(`<option value="${h.id}">${h.name}</option>`);
         });
-      },
-      error: function () {
-        $("#responseMessage").addClass("error").text("Failed to load hospitals.");
       }
     });
   }
 
-  // === Load Doctors ===
+  // === Load Doctors from /api/list-Doctors ===
   function loadDoctors(hospitalId, department = "all") {
     if (!hospitalId) return;
+
     $.ajax({
-      url: `${apiBase}/api/list-Doctors-Hospital-Wise`,
+      url: `${apiBase}/api/list-Doctors`,
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
       data: { hospital_id: hospitalId },
       success: function (res) {
         $("#doctorSelect").empty().append(`<option value="">-- Select Doctor --</option>`);
+
         (res.data || []).forEach(doc => {
-          if (department === "all" || (doc.expertise && doc.expertise.toLowerCase().includes(department.toLowerCase()))) {
-            $("#doctorSelect").append(`<option value="${doc.id}">${doc.name} (${doc.expertise || "N/A"})</option>`);
+          if (department === "all" ||
+            (doc.expertise && doc.expertise.toLowerCase().includes(department.toLowerCase()))) {
+            $("#doctorSelect").append(
+              `<option value="${doc.id}">${doc.name} (${doc.expertise || "N/A"})</option>`
+            );
           }
         });
       },
@@ -57,138 +59,132 @@ $(document).ready(function () {
     });
   }
 
-  // === Generate Next 14 Days (exclude Sundays) ===
+  // === Generate next 14 days (No Sundays) ===
   function generateDates() {
     const strip = $("#dateStrip").empty();
     const today = new Date();
     let count = 0;
+
     while (count < 14) {
       today.setDate(today.getDate() + 1);
-      const day = today.getDay();
-      if (day === 0) continue; // skip Sunday
+      if (today.getDay() === 0) continue; // skip Sunday
+
       const dateStr = today.toISOString().split("T")[0];
       const dayShort = today.toLocaleDateString("en-US", { weekday: "short" });
       const dateNum = today.getDate();
+
       strip.append(`
         <div class="date-card" data-date="${dateStr}">
           <div>${dayShort}</div>
           <div>${dateNum}</div>
         </div>
       `);
+
       count++;
     }
   }
 
-  // === Fetch Doctor Availability ===
+  // === Fetch Availability ===
   function fetchAvailability(hospitalId, doctorId, date) {
-    if (!hospitalId || !doctorId || !date) return;
     $.ajax({
       url: `${apiBase}/appointment/get-Doctor-Availability`,
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
       data: { hospital_id: hospitalId, DoctorId: doctorId, Date: date },
       success: function (res) {
-        const slotsContainer = $("#slotsContainer").empty();
+        const container = $("#slotsContainer").empty();
         const slots = res.data || [];
-        if (slots.length === 0) {
-          slotsContainer.html("<p style='color:#6b7280'>No slots available</p>");
+
+        if (!slots.length) {
+          container.html("<p style='color:#6b7280'>No slots available</p>");
           return;
         }
 
-        // ✅ Show slots in AM/PM format and store AM/PM value in data attribute
         slots.forEach(time => {
-          const t12 = convertTo12Hour(time);
-          slotsContainer.append(`<div class="slot-card" data-time="${t12}">${t12}</div>`);
+          container.append(`
+            <div class="slot-card" data-time="${time}">
+              ${convertTo12(time)}
+            </div>
+          `);
         });
-      },
-      error: function (xhr) {
-        console.error("Error fetching slots:", xhr.responseText);
       }
     });
   }
 
-  // === Convert HH:mm:ss → 12-hour format ===
-  function convertTo12Hour(timeStr) {
-    const [h, m] = timeStr.split(":");
-    let hour = parseInt(h, 10);
+  // === Convert HH:MM:SS → 12 hour (hh:mm AM/PM) ===
+  function convertTo12(time) {
+    const [h, m] = time.split(":");
+    let hour = parseInt(h);
     const ampm = hour >= 12 ? "PM" : "AM";
     hour = hour % 12 || 12;
     return `${hour}:${m} ${ampm}`;
   }
 
-  // === Event Handlers ===
-  $("#hospitalSelect").change(function () {
-    const hospitalId = $(this).val();
-    const dept = $("#departmentSelect").val();
-    loadDoctors(hospitalId, dept);
-  });
+  // === EVENTS ===
+  $("#hospitalSelect").change(() =>
+    loadDoctors($("#hospitalSelect").val(), $("#departmentSelect").val())
+  );
 
-  $("#departmentSelect").change(function () {
-    const hospitalId = $("#hospitalSelect").val();
-    loadDoctors(hospitalId, $(this).val());
-  });
+  $("#departmentSelect").change(() =>
+    loadDoctors($("#hospitalSelect").val(), $("#departmentSelect").val())
+  );
 
-  $("#doctorSelect").change(function () {
-    const hospitalId = $("#hospitalSelect").val();
-    const doctorId = $(this).val();
-    if (selectedDate) fetchAvailability(hospitalId, doctorId, selectedDate);
+  $("#doctorSelect").change(() => {
+    if (selectedDate)
+      fetchAvailability($("#hospitalSelect").val(), $("#doctorSelect").val(), selectedDate);
   });
 
   $(document).on("click", ".date-card", function () {
     $(".date-card").removeClass("selected");
     $(this).addClass("selected");
+
     selectedDate = $(this).data("date");
-    const hospitalId = $("#hospitalSelect").val();
-    const doctorId = $("#doctorSelect").val();
-    if (hospitalId && doctorId) fetchAvailability(hospitalId, doctorId, selectedDate);
+    if ($("#doctorSelect").val())
+      fetchAvailability($("#hospitalSelect").val(), $("#doctorSelect").val(), selectedDate);
   });
 
   $(document).on("click", ".slot-card", function () {
     $(".slot-card").removeClass("selected");
     $(this).addClass("selected");
-    selectedSlot = $(this).data("time"); // ✅ This now stores AM/PM format
+
+    // ✅ Backend expects "10:00 AM" not "10:00:00"
+    const raw = $(this).data("time");
+    selectedSlot = convertTo12(raw);
   });
 
-  // === Submit Appointment ===
+  // === Submit Booking ===
   $("#bookForm").submit(function (e) {
     e.preventDefault();
-    const hospital_id = $("#hospitalSelect").val();
-    const doctorId = $("#doctorSelect").val();
 
-    if (!hospital_id || !doctorId || !selectedDate || !selectedSlot) {
-      $("#responseMessage").addClass("error").text("Please select all fields.");
+    if (!$("#hospitalSelect").val() || !$("#doctorSelect").val() || !selectedDate || !selectedSlot) {
+      $("#responseMessage").addClass("error").text("Select all fields");
       return;
     }
-
-    console.log("Booking payload →", {
-      hospital_id,
-      doctorId,
-      appointment_date: selectedDate,
-      appointment_startTime: selectedSlot
-    });
 
     $.ajax({
       url: `${apiBase}/appointment/Book-appointment`,
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
-      data: { hospital_id, doctorId, appointment_date: selectedDate, appointment_startTime: selectedSlot },
+      data: {
+        hospital_id: $("#hospitalSelect").val(),
+        doctorId: $("#doctorSelect").val(),
+        appointment_date: selectedDate,
+        appointment_startTime: selectedSlot
+      },
       success: function (res) {
         if (res.status) {
-          $("#responseMessage").removeClass("error").addClass("success").text(res.mssge);
-          setTimeout(() => window.location.href = "appointments.html", 2000);
+          $("#responseMessage").removeClass("error").addClass("success").text("✅ Appointment booked successfully!");
+          setTimeout(() => location.href = "appointments.html", 1500);
         } else {
-          $("#responseMessage").addClass("error").text(res.mssge || res.Error || "Booking failed.");
+          $("#responseMessage").removeClass("success").addClass("error").text(res.message || "Error");
         }
-      },
-      error: function (xhr) {
-        $("#responseMessage").addClass("error").text("Error: " + xhr.responseText);
       }
     });
   });
 
-  $("#backBtn").click(() => window.location.href = "dashboard.html");
+  $("#backBtn").click(() => location.href = "dashboard.html");
 
-  // === Init ===
+  // Init
   if (role === "2") {
     loadHospitals();
     generateDates();

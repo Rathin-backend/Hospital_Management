@@ -36,8 +36,7 @@ public function listAllHospitals()
             "status" => false,
             "Error" => $e->getMessage()
         ]);
-}
-
+ }
 
 }
 
