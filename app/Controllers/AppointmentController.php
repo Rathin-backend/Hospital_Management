@@ -1027,6 +1027,156 @@ public function showHistory()
 }
 
 
+
+
+// public function showHistory()
+// {
+//     try {
+//         $userId  = $this->request->id;
+//         $userRole = $this->request->role;
+
+//         // patientId input OR self for patient portal
+//         $patientId = $this->request->getVar('patientId') ?? $userId;
+//         $hospital_id = $this->request->getVar("hospital_id");
+
+//         // role based filter
+//         $whereRole = "";
+//         if ($userRole == "2") { // patient
+//             $whereRole = "AND a.patient_id = $patientId";
+//         } elseif ($userRole == "1") { // doctor
+//             $whereRole = "AND a.doctor_id = $userId";
+//         } elseif ($userRole == "0") { // admin
+//             $activeHospital = $this->request->hospital_id ?? null;
+//             if (!$activeHospital) {
+//                 return $this->respond(["status"=>false,"message"=>"Select hospital first"],400);
+//             }
+//             $whereRole = "AND a.hospital_id = $activeHospital";
+//         } elseif ($userRole == "3" && !empty($hospital_id)) { // superadmin
+//             $whereRole = "AND a.hospital_id = $hospital_id";
+//         }
+
+//         $sql = "
+//         SELECT
+//             a.id AS appointment_id,
+//             a.Appointment_date,
+//             a.Appointment_startTime,
+//             a.Appointment_endTime,
+
+//             h.id AS hospital_id, h.name AS hospital_name,
+//             h.contact_no AS hospital_phone, h.address AS hospital_address,
+
+//             d.id AS doctor_id, d.name AS doctor_name,
+//             p.id AS patient_id, p.name AS patient_name,
+
+//             v.id AS visit_id, v.created_at AS visit_date,
+//             v.weight, v.bp_systolic, v.bp_diastolic, v.doctor_comment,
+
+//             -- Complaints
+//             COALESCE((
+//                 SELECT JSON_ARRAYAGG(
+//                     JSON_OBJECT(
+//                         'complaint', c.complaint,
+//                         'description', c.description,
+//                         'severity', c.severity,
+//                         'days', c.days
+//                     )
+//                 )
+//                 FROM complaints c
+//                 WHERE c.visit_record_id = v.id AND c.isDeleted = 0
+//             ), JSON_ARRAY()) AS complaints,
+
+//             -- Diagnoses
+//             COALESCE((
+//                 SELECT JSON_ARRAYAGG(
+//                     JSON_OBJECT(
+//                         'diagnosis_name', md.name,
+//                         'notes', dg.notes
+//                     )
+//                 )
+//                 FROM diagnosis dg
+//                 LEFT JOIN master_diagnoses md ON md.id = dg.diagnosis_id
+//                 WHERE dg.visit_record_id = v.id AND dg.isDeleted = 0
+//             ), JSON_ARRAY()) AS diagnoses,
+
+//             -- Prescriptions
+//             COALESCE((
+//                 SELECT JSON_ARRAYAGG(
+//                     JSON_OBJECT(
+//                         'medicine_name', pr.medicine_name,
+//                         'dosage', pr.dosage,
+//                         'frequency', pr.frequency,
+//                         'duration', pr.duration,
+//                         'instructions', pr.instructions
+//                     )
+//                 )
+//                 FROM prescriptions pr
+//                 WHERE pr.visit_record_id = v.id AND pr.isDeleted = 0
+//             ), JSON_ARRAY()) AS prescriptions
+
+//         FROM appointments a
+//         JOIN visit_records v ON v.appointment_id = a.id
+//         JOIN hospitals h ON h.id = a.hospital_id
+//         JOIN users d ON d.id = a.doctor_id
+//         JOIN users p ON p.id = a.patient_id
+//         WHERE a.status = 'completed'
+//         $whereRole
+//         ORDER BY a.Appointment_date DESC
+//         ";
+
+//         $rows = $this->db->query($sql)->getResultArray();
+
+//         // Format result for FE compatibility
+//         $result = [];
+
+//         foreach ($rows as $r) {
+//             $result[] = [
+//                 "appointment_id" => $r['appointment_id'],
+//                 "hospital" => [
+//                     "id" => $r['hospital_id'],
+//                     "name" => $r['hospital_name'],
+//                     "contact" => $r['hospital_phone'],
+//                     "address" => $r['hospital_address'],
+//                 ],
+//                 "doctor" => [
+//                     "id" => $r['doctor_id'],
+//                     "name" => $r['doctor_name'],
+//                 ],
+//                 "patient" => [
+//                     "id" => $r['patient_id'],
+//                     "name" => $r['patient_name'],
+//                 ],
+//                 "appointment_date" => $r['Appointment_date'],
+//                 "appointment_startTime" => $r['Appointment_startTime'],
+//                 "appointment_endTime" => $r['Appointment_endTime'],
+//                 "visit_details" => [
+//                     "visit_id" => $r['visit_id'],
+//                     "date" => $r['visit_date'],
+//                     "weight" => $r['weight'],
+//                     "bp_systolic" => $r['bp_systolic'],
+//                     "bp_diastolic" => $r['bp_diastolic'],
+//                     "doctor_comment" => $r['doctor_comment'],
+//                     "complaints" => json_decode($r['complaints'], true),
+//                     "diagnoses" => json_decode($r['diagnoses'], true),
+//                     "prescriptions" => json_decode($r['prescriptions'], true),
+//                 ]
+//             ];
+//         }
+
+//         return $this->respond([
+//             "status" => true,
+//             "message" => "Patient history fetched successfully",
+//             "data" => $result
+//         ]);
+
+//     } catch (\Exception $e) {
+//         return $this->respond([
+//             "status" => false,
+//             "error" => $e->getMessage()
+//         ]);
+//     }
+// }
+
+
 public function getPatientStats()
 {
     try {

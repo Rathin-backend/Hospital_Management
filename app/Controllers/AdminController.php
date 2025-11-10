@@ -962,7 +962,7 @@ public function stats()
 
 
         // DOCTOR / ADMIN → Hospital-specific stats
-        $loggedHospitalId = $this->request->hospital_id;
+        $loggedHospitalId = $this->request->hospital_id ?? null;
         if (!$loggedHospitalId) {
             return $this->respond([
                 "status" => false,
